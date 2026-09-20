@@ -1,5 +1,91 @@
-import { AnswerMap, AnswerValue, HistoryMap, QuestionGroup, UserProfile } from '@/types';
+import { AnswerMap, AnswerValue, Category, HistoryMap, QuestionGroup, UserProfile } from '@/types';
 import { pairKey } from '@/utils/pairKey';
+
+/** Umbrella groupings shown on the Match screen, e.g. "Sport" rolls up Sport, Fitness & Gym, Lieblingssportarten. */
+export const CATEGORIES: Category[] = [
+  { id: 'reise', name: 'Reise & Freizeit', icon: '🏖️' },
+  { id: 'sport', name: 'Sport', icon: '🏃' },
+  { id: 'essen', name: 'Essen & Trinken', icon: '🍔' },
+  { id: 'finanzen', name: 'Finanzen & Zukunft', icon: '📈' },
+  { id: 'beziehung', name: 'Liebe & Beziehung', icon: '💑' },
+  { id: 'unterhaltung', name: 'Filme, Serien & Musik', icon: '🎬' },
+  { id: 'gaming', name: 'Gaming & Videospiele', icon: '🎮' },
+  { id: 'socialmedia', name: 'Social Media', icon: '📱' },
+  { id: 'lifestyle', name: 'Alltag & Lifestyle', icon: '🏠' },
+  { id: 'persoenlichkeit', name: 'Persönlichkeit & Charakter', icon: '⚡' },
+  { id: 'politik', name: 'Politik & Gesellschaft', icon: '🏛️' },
+  { id: 'kunst', name: 'Kunst & Kultur', icon: '🎨' },
+  { id: 'bildung', name: 'Bildung & Wissen', icon: '📖' },
+];
+
+const GROUP_CATEGORY: Record<string, string> = {
+  urlaub: 'reise',
+  freizeit: 'reise',
+  sport: 'sport',
+  fitness: 'sport',
+  sportarten: 'sport',
+  extremsport: 'sport',
+  essen: 'essen',
+  pasta: 'essen',
+  pizza: 'essen',
+  burger: 'essen',
+  suess: 'essen',
+  kaffee: 'essen',
+  fruehstueck: 'essen',
+  kochen: 'essen',
+  veggie: 'essen',
+  streetfood: 'essen',
+  alkohol: 'essen',
+  investieren: 'finanzen',
+  sparen: 'finanzen',
+  krypto: 'finanzen',
+  gehalt: 'finanzen',
+  luxus: 'finanzen',
+  schulden: 'finanzen',
+  sidehustle: 'finanzen',
+  zukunft: 'finanzen',
+  beziehung: 'beziehung',
+  dating: 'beziehung',
+  heirat: 'beziehung',
+  eifersucht: 'beziehung',
+  kommunikation: 'beziehung',
+  fernbeziehung: 'beziehung',
+  trennung: 'beziehung',
+  onlinedating: 'beziehung',
+  filme: 'unterhaltung',
+  serien: 'unterhaltung',
+  musik: 'unterhaltung',
+  buecher: 'unterhaltung',
+  konzerte: 'unterhaltung',
+  podcasts: 'unterhaltung',
+  gaming: 'gaming',
+  instagram: 'socialmedia',
+  tiktok: 'socialmedia',
+  socialmedia: 'socialmedia',
+  influencer: 'socialmedia',
+  privatsphaere: 'socialmedia',
+  memes: 'socialmedia',
+  mode: 'lifestyle',
+  wohnen: 'lifestyle',
+  nachhaltigkeit: 'lifestyle',
+  mentalhealth: 'lifestyle',
+  schlaf: 'lifestyle',
+  party: 'lifestyle',
+  freundschaft: 'lifestyle',
+  studium: 'lifestyle',
+  job: 'lifestyle',
+  technologie: 'lifestyle',
+  haustiere: 'lifestyle',
+  autos: 'lifestyle',
+  koerperbild: 'lifestyle',
+  ehrenamt: 'lifestyle',
+  astrologie: 'persoenlichkeit',
+  konflikt: 'persoenlichkeit',
+  politik: 'politik',
+  krise: 'politik',
+  kunst: 'kunst',
+  bildung: 'bildung',
+};
 
 const GROUP_DEFS: { id: string; name: string; icon: string; questions: string[] }[] = [
   {
@@ -728,6 +814,82 @@ const GROUP_DEFS: { id: string; name: string; icon: string; questions: string[] 
       'Ich würde für ein soziales Projekt ins Ausland gehen.',
     ],
   },
+  // --- Sport im Detail ---
+  {
+    id: 'sportarten',
+    name: 'Lieblingssportarten',
+    icon: '⚽',
+    questions: [
+      'Fußball ist für mich der spannendste Sport.',
+      'Ich würde lieber Basketball schauen als Tennis.',
+      'Wintersport wie Skifahren fasziniert mich mehr als Wassersport.',
+      'Ich würde einen Kampfsport wie Boxen oder Judo ausprobieren.',
+      'Ich verfolge aktiv die Ergebnisse meiner Lieblingsmannschaft oder meines Lieblingssportlers.',
+    ],
+  },
+  {
+    id: 'extremsport',
+    name: 'Abenteuer & Extremsport',
+    icon: '🧗',
+    questions: [
+      'Ich würde einen Fallschirmsprung machen.',
+      'Ich würde lieber klettern als schwimmen.',
+      'Ich suche im Urlaub aktiv den Adrenalinkick.',
+      'Ich würde einen Ultramarathon oder Ironman in Erwägung ziehen.',
+      'Risiko beim Sport schreckt mich nicht ab.',
+    ],
+  },
+  // --- Politik & Gesellschaft ---
+  {
+    id: 'politik',
+    name: 'Politik & Engagement',
+    icon: '🏛️',
+    questions: [
+      'Ich informiere mich regelmäßig über politische Themen.',
+      'Ich würde bei einer Wahl auf jeden Fall wählen gehen.',
+      'Ich würde öffentlich für meine politische Meinung einstehen, auch wenn sie unpopulär ist.',
+      'Ich könnte mir vorstellen, mich politisch zu engagieren (Partei, Demo, Petition).',
+      'Ich diskutiere gerne über Politik, auch wenn es zu Streit führen kann.',
+    ],
+  },
+  {
+    id: 'krise',
+    name: 'Krise & Moral',
+    icon: '⚔️',
+    questions: [
+      'Ich würde in einer Diktatur öffentlich Kritik am System üben, auch mit persönlichem Risiko.',
+      'Ich würde, wenn mein Land es verlangt, in den Krieg ziehen.',
+      'Ich würde für meine Überzeugungen notfalls ins Gefängnis gehen.',
+      'Ich würde eine Notlüge benutzen, um einen geliebten Menschen zu schützen.',
+      'Ich würde fliehen, statt in einem Krisenland zu kämpfen.',
+    ],
+  },
+  // --- Kunst & Kultur ---
+  {
+    id: 'kunst',
+    name: 'Kunst & Kultur',
+    icon: '🎨',
+    questions: [
+      'Ich besuche regelmäßig Museen oder Ausstellungen.',
+      'Ich könnte mir vorstellen, selbst künstlerisch aktiv zu sein (malen, zeichnen, etc.).',
+      'Moderne Kunst sagt mir mehr zu als klassische Kunst.',
+      'Ich würde für ein besonderes Kunstwerk viel Geld ausgeben.',
+      'Kultur und Kunst sind mir im Alltag wichtig.',
+    ],
+  },
+  // --- Bildung & Wissen ---
+  {
+    id: 'bildung',
+    name: 'Bildung & Wissen',
+    icon: '📖',
+    questions: [
+      'Ich lerne auch nach der Schule oder dem Studium gerne bewusst Neues dazu.',
+      'Ich würde für eine gute Ausbildung ins Ausland gehen.',
+      'Bildung ist für mich wichtiger als praktische Erfahrung.',
+      'Ich würde freiwillig einen Kurs oder eine Weiterbildung in meiner Freizeit machen.',
+      'Ich diskutiere gerne über Wissenschaft und aktuelle Forschung.',
+    ],
+  },
 ];
 
 /** The shared catalog of topics. Every person answers into the same groups independently. */
@@ -735,6 +897,7 @@ export const QUESTION_GROUPS: QuestionGroup[] = GROUP_DEFS.map((group) => ({
   id: group.id,
   name: group.name,
   icon: group.icon,
+  category: GROUP_CATEGORY[group.id],
   questions: group.questions.map((text, index) => ({ id: `${group.id}-q${index + 1}`, text })),
 }));
 

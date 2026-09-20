@@ -1,7 +1,15 @@
 import { create } from 'zustand';
 
-import { FRIENDS, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS, TEST_USERS } from '@/data/mockData';
-import { AnswerMap, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
+import {
+  CATEGORIES,
+  FRIENDS,
+  INITIAL_GUESSES,
+  INITIAL_HISTORY,
+  INITIAL_STREAKS,
+  QUESTION_GROUPS,
+  TEST_USERS,
+} from '@/data/mockData';
+import { AnswerMap, Category, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
 import { pairKey } from '@/utils/pairKey';
 
 export type ResolutionStatus = 'not_guessed' | 'waiting_for_truth' | 'resolved';
@@ -283,10 +291,11 @@ export function matchWithFriend(state: AppState, friendId: string): MatchResult 
   return { matches, total, percent: total > 0 ? Math.round((matches / total) * 100) : null };
 }
 
-/** Every question where my latest answer and the friend's latest answer agree. */
-export function sharedAnswers(state: AppState, friendId: string) {
+/** Every question where my latest answer and the friend's latest answer agree, optionally limited to one category. */
+export function sharedAnswers(state: AppState, friendId: string, categoryId?: string) {
   const shared: { group: QuestionGroup; questionId: string; value: AnswerMap[string] }[] = [];
   for (const group of state.groups) {
+    if (categoryId && group.category !== categoryId) continue;
     const mine = latestAnswers(state.history[state.activeUserId]?.[group.id]);
     const theirs = latestAnswers(state.history[friendId]?.[group.id]);
     if (!mine || !theirs) continue;
@@ -297,6 +306,29 @@ export function sharedAnswers(state: AppState, friendId: string) {
     }
   }
   return shared;
+}
+
+export interface CategoryMatchResult extends MatchResult {
+  category: Category;
+}
+
+/** % overlap per umbrella category, so Match can show "Politik 70%, Kunst 10%, ..." before drilling into questions. */
+export function matchByCategory(state: AppState, friendId: string): CategoryMatchResult[] {
+  return CATEGORIES.map((category) => {
+    let matches = 0;
+    let total = 0;
+    for (const group of state.groups) {
+      if (group.category !== category.id) continue;
+      const mine = latestAnswers(state.history[state.activeUserId]?.[group.id]);
+      const theirs = latestAnswers(state.history[friendId]?.[group.id]);
+      if (!mine || !theirs) continue;
+      for (const question of group.questions) {
+        total += 1;
+        if (mine[question.id] === theirs[question.id]) matches += 1;
+      }
+    }
+    return { category, matches, total, percent: total > 0 ? Math.round((matches / total) * 100) : null };
+  });
 }
 
 /** How many of my own groups I've completed at least once. */

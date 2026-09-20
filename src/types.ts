@@ -28,7 +28,15 @@ export interface QuestionGroup {
   id: string;
   name: string;
   icon: string;
+  category: string;
   questions: Question[];
+}
+
+/** An umbrella grouping of related topic groups, e.g. "Sport" covers Sport, Fitness, Lieblingssportarten. */
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
 }
 
 /** One timestamped answer. A question accumulates these over time instead of being overwritten. */

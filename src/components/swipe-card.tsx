@@ -1,8 +1,11 @@
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  Easing,
   interpolate,
   runOnJS,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -16,30 +19,72 @@ import { useTheme } from '@/hooks/use-theme';
 import { AnswerValue, Question } from '@/types';
 
 const SWIPE_THRESHOLD = 90;
-const EXIT_DISTANCE = 600;
+const EXIT_DISTANCE = 700;
+const EXIT_TARGETS: Record<Exclude<AnswerValue, 'never'>, [number, number]> = {
+  yes: [EXIT_DISTANCE, 0],
+  no: [-EXIT_DISTANCE, 0],
+  leanYes: [0, -EXIT_DISTANCE],
+  leanNo: [0, EXIT_DISTANCE],
+};
+
+export interface SwipeCardHandle {
+  /** Plays the same exit/pulse animation a gesture would, then reports the answer - used by the fallback buttons. */
+  animateAnswer: (value: AnswerValue) => void;
+}
 
 interface SwipeCardProps {
   question: Question;
   onAnswer: (value: AnswerValue) => void;
   active: boolean;
+  translateX: SharedValue<number>;
+  translateY: SharedValue<number>;
 }
 
-export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
+export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
+  { question, onAnswer, active, translateX, translateY },
+  ref,
+) {
   const theme = useTheme();
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
   const neverPulse = useSharedValue(0);
+  const entrance = useSharedValue(0.9);
 
-  function finish(value: AnswerValue, exitX: number, exitY: number) {
-    translateX.value = withTiming(exitX, { duration: 180 });
-    translateY.value = withTiming(exitY, { duration: 180 }, (finished) => {
+  useEffect(() => {
+    entrance.value = withSpring(1, { damping: 14, stiffness: 160 });
+    // A freshly mounted card (new question) always starts centered - matches the reset in SwipeDeck.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
+
+  function finish(value: AnswerValue, exitX: number, exitY: number, velocityX = 0, velocityY = 0) {
+    const distance = Math.hypot(exitX - translateX.value, exitY - translateY.value);
+    const speed = Math.max(Math.hypot(velocityX, velocityY), 900);
+    const duration = Math.min(420, Math.max(180, (distance / speed) * 1000));
+    const easing = Easing.out(Easing.cubic);
+
+    translateX.value = withTiming(exitX, { duration, easing });
+    translateY.value = withTiming(exitY, { duration, easing }, (finished) => {
       if (finished) runOnJS(onAnswer)(value);
     });
   }
 
-  function answerNever() {
-    onAnswer('never');
+  function playNever() {
+    neverPulse.value = withSequence(
+      withTiming(1, { duration: 110 }),
+      withTiming(0, { duration: 260 }, (finished) => {
+        if (finished) runOnJS(onAnswer)('never');
+      }),
+    );
   }
+
+  useImperativeHandle(ref, () => ({
+    animateAnswer(value) {
+      if (value === 'never') {
+        playNever();
+        return;
+      }
+      const [x, y] = EXIT_TARGETS[value];
+      finish(value, x, y);
+    },
+  }));
 
   const pan = Gesture.Pan()
     .enabled(active)
@@ -52,17 +97,23 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
       const dy = e.translationY;
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
+      // A confident flick clears the deck even if it hasn't crossed the
+      // distance threshold yet - matches how a real swipe gesture feels.
+      const fastX = Math.abs(e.velocityX) > 900;
+      const fastY = Math.abs(e.velocityY) > 900;
 
-      if (absX > absY && absX > SWIPE_THRESHOLD) {
-        finish(dx > 0 ? 'yes' : 'no', dx > 0 ? EXIT_DISTANCE : -EXIT_DISTANCE, dy);
+      if (absX > absY && (absX > SWIPE_THRESHOLD || fastX)) {
+        const goingRight = dx > 0 || (absX <= SWIPE_THRESHOLD && e.velocityX > 0);
+        finish(goingRight ? 'yes' : 'no', goingRight ? EXIT_DISTANCE : -EXIT_DISTANCE, dy, e.velocityX, e.velocityY);
         return;
       }
-      if (absY >= absX && absY > SWIPE_THRESHOLD) {
-        finish(dy < 0 ? 'leanYes' : 'leanNo', dx, dy < 0 ? -EXIT_DISTANCE : EXIT_DISTANCE);
+      if (absY >= absX && (absY > SWIPE_THRESHOLD || fastY)) {
+        const goingUp = dy < 0 || (absY <= SWIPE_THRESHOLD && e.velocityY < 0);
+        finish(goingUp ? 'leanYes' : 'leanNo', dx, goingUp ? -EXIT_DISTANCE : EXIT_DISTANCE, e.velocityX, e.velocityY);
         return;
       }
-      translateX.value = withSpring(0);
-      translateY.value = withSpring(0);
+      translateX.value = withSpring(0, { damping: 16, stiffness: 180, velocity: e.velocityX });
+      translateY.value = withSpring(0, { damping: 16, stiffness: 180, velocity: e.velocityY });
     });
 
   // A hard "Nie" is a deliberate double-tap on the card, not a swipe. Race
@@ -76,36 +127,42 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
     .numberOfTaps(2)
     .maxDistance(15)
     .onStart(() => {
-      neverPulse.value = withSequence(
-        withTiming(1, { duration: 120 }),
-        withTiming(0, { duration: 220 }, (finished) => {
-          if (finished) runOnJS(answerNever)();
-        }),
-      );
+      runOnJS(playNever)();
     });
 
   const gesture = Gesture.Race(pan, doubleTap);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { rotate: `${interpolate(translateX.value, [-300, 300], [-10, 10])}deg` },
-    ],
-  }));
+  const dragMagnitude = (tx: number, ty: number) => Math.min(Math.hypot(tx, ty) / 220, 1);
 
-  const yesStampStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
-  }));
-  const noStampStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp'),
-  }));
-  const leanYesStampStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateY.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp'),
-  }));
-  const leanNoStampStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateY.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
-  }));
+  const cardStyle = useAnimatedStyle(() => {
+    const drag = dragMagnitude(translateX.value, translateY.value);
+    return {
+      opacity: entrance.value,
+      transform: [
+        { scale: interpolate(entrance.value, [0.9, 1], [0.95, 1]) * interpolate(drag, [0, 1], [1, 1.04]) },
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { rotate: `${interpolate(translateX.value, [-320, 320], [-14, 14], 'clamp')}deg` },
+      ],
+    };
+  });
+
+  const yesStampStyle = useAnimatedStyle(() => {
+    const t = interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp');
+    return { opacity: t, transform: [{ scale: interpolate(t, [0, 1], [0.75, 1]) }] };
+  });
+  const noStampStyle = useAnimatedStyle(() => {
+    const t = interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp');
+    return { opacity: t, transform: [{ scale: interpolate(t, [0, 1], [0.75, 1]) }] };
+  });
+  const leanYesStampStyle = useAnimatedStyle(() => {
+    const t = interpolate(translateY.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp');
+    return { opacity: t, transform: [{ scale: interpolate(t, [0, 1], [0.75, 1]) }] };
+  });
+  const leanNoStampStyle = useAnimatedStyle(() => {
+    const t = interpolate(translateY.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp');
+    return { opacity: t, transform: [{ scale: interpolate(t, [0, 1], [0.75, 1]) }] };
+  });
   const neverStampStyle = useAnimatedStyle(() => ({
     opacity: neverPulse.value,
     transform: [{ scale: interpolate(neverPulse.value, [0, 1], [0.7, 1.15]) }],
@@ -151,7 +208,7 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
       </Animated.View>
     </GestureDetector>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

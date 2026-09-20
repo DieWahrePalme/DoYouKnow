@@ -4,37 +4,41 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
+import { CATEGORIES } from '@/data/mockData';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { matchWithFriend, sharedAnswers, useAppStore } from '@/state/appStore';
+import { matchByCategory, sharedAnswers, useAppStore } from '@/state/appStore';
 import { ANSWER_LABELS } from '@/types';
 
-export default function MatchDetailScreen() {
-  const { friendId } = useLocalSearchParams<{ friendId: string }>();
+export default function MatchCategoryDetailScreen() {
+  const { friendId, categoryId } = useLocalSearchParams<{ friendId: string; categoryId: string }>();
   const theme = useTheme();
 
   const friend = useAppStore((state) => state.users[friendId ?? '']);
   const activeUserId = useAppStore((state) => state.activeUserId);
-  const result = useAppStore(useShallow((state) => matchWithFriend(state, friendId ?? '')));
+  const category = CATEGORIES.find((c) => c.id === categoryId);
+  const result = useAppStore(
+    useShallow((state) => matchByCategory(state, friendId ?? '').find((r) => r.category.id === categoryId)),
+  );
   // `sharedAnswers` returns freshly-built objects, so a plain selector would
   // never be reference-stable (infinite update loop) - recompute only when
   // the underlying history actually changes.
   const history = useAppStore((state) => state.history);
   const groups = useAppStore((state) => state.groups);
   const shared = useMemo(
-    () => sharedAnswers(useAppStore.getState(), friendId ?? ''),
-    [history, groups, friendId],
+    () => sharedAnswers(useAppStore.getState(), friendId ?? '', categoryId),
+    [history, groups, friendId, categoryId],
   );
   const favorites = useAppStore((state) => state.favorites);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
 
-  if (!friend) {
+  if (!friend || !category || !result) {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          <ThemedText type="default">Diesen Freund gibt es nicht (mehr).</ThemedText>
+          <ThemedText type="default">Das gibt es nicht (mehr).</ThemedText>
         </SafeAreaView>
       </ThemedView>
     );
@@ -45,6 +49,9 @@ export default function MatchDetailScreen() {
       <SafeAreaView style={styles.safeArea}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
           <ThemedText type="subtitle" style={styles.heading}>
+            {category.icon} {category.name}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
             {friend.avatarEmoji} {friend.name}
           </ThemedText>
 
@@ -55,7 +62,7 @@ export default function MatchDetailScreen() {
             <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
               {result.total > 0
                 ? `${result.matches} von ${result.total} vergleichbaren Antworten gleich`
-                : 'Noch keine gemeinsamen Antworten - beantwortet erst ein paar der gleichen Themen.'}
+                : 'Noch keine gemeinsamen Antworten in dieser Kategorie.'}
             </ThemedText>
           </ThemedView>
 
@@ -110,6 +117,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   heading: {
+    textAlign: 'center',
     marginTop: Spacing.three,
   },
   scoreCard: {
