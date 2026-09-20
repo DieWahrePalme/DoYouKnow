@@ -9,32 +9,34 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useAppStore } from '@/state/appStore';
+import { latestAnswers, useAppStore } from '@/state/appStore';
 import { AnswerMap } from '@/types';
 
-export default function FriendScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export default function FriendGroupGuessScreen() {
+  const { id, groupId } = useLocalSearchParams<{ id: string; groupId: string }>();
   const theme = useTheme();
 
   const friend = useAppStore((state) => state.friends.find((f) => f.id === id));
-  const deck = useAppStore((state) => state.decksBySubject[id ?? '']);
-  const truth = useAppStore((state) => state.selfAnswers[id ?? '']);
-  const existingGuess = useAppStore((state) => state.myGuesses[id ?? '']);
+  const group = useAppStore((state) => state.groups.find((g) => g.id === groupId));
+  const historyForGroup = useAppStore((state) => state.history[id ?? '']?.[groupId ?? '']);
+  const existingGuess = useAppStore((state) => state.myGuesses[id ?? '']?.[groupId ?? '']);
   const submitGuess = useAppStore((state) => state.submitGuess);
   const [localGuess, setLocalGuess] = useState<AnswerMap | undefined>(undefined);
 
-  if (!friend || !deck) {
+  if (!friend || !group) {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          <ThemedText type="default">Diesen Freund gibt es nicht (mehr).</ThemedText>
+          <ThemedText type="default">Das gibt es nicht (mehr).</ThemedText>
         </SafeAreaView>
       </ThemedView>
     );
   }
 
+  const truth = latestAnswers(historyForGroup);
+
   function handleComplete(answers: AnswerMap) {
-    submitGuess(friend!.id, answers);
+    submitGuess(friend!.id, group!.id, answers);
     setLocalGuess(answers);
   }
 
@@ -44,23 +46,21 @@ export default function FriendScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedText type="subtitle" style={styles.heading}>
+          {group.icon} {group.name}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.subheading}>
           {friend.avatarEmoji} {friend.name}
         </ThemedText>
 
         {!guess ? (
-          <>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.subheading}>
-              Wie würde {friend.name} diese 5 Fragen wohl beantworten?
-            </ThemedText>
-            <SwipeDeck questions={deck.questions} onComplete={handleComplete} />
-          </>
+          <SwipeDeck questions={group.questions} onComplete={handleComplete} />
         ) : (
           <>
-            <ResultView subjectName={friend.name} questions={deck.questions} guesses={guess} truth={truth} />
+            <ResultView subjectName={friend.name} questions={group.questions} guesses={guess} truth={truth} />
             <Pressable
               onPress={() => router.back()}
               style={[styles.button, { backgroundColor: theme.backgroundSelected }]}>
-              <ThemedText type="smallBold">Zurück zur Übersicht</ThemedText>
+              <ThemedText type="smallBold">Zurück</ThemedText>
             </Pressable>
           </>
         )}

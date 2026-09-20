@@ -13,14 +13,13 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack
           screenOptions={{
+            title: '',
             headerStyle: { backgroundColor: theme.background },
             headerTintColor: theme.text,
             headerShadowVisible: false,
             contentStyle: { backgroundColor: theme.background },
           }}>
-          <Stack.Screen name="index" options={{ title: 'Do You Know' }} />
-          <Stack.Screen name="me" options={{ title: 'Deine Fragen heute' }} />
-          <Stack.Screen name="friend/[id]" options={{ title: '' }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>

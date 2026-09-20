@@ -1,16 +1,17 @@
 import { router } from 'expo-router';
-import { FlatList, StyleSheet } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FriendRow } from '@/components/friend-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { hasHourglass, useAppStore } from '@/state/appStore';
-import { Friend, ME_ID } from '@/types';
+import { useTheme } from '@/hooks/use-theme';
+import { hasHourglassForFriend, useAppStore, waitingForMeCount } from '@/state/appStore';
+import { Friend } from '@/types';
 
 function FriendListItem({ friend }: { friend: Friend }) {
-  const pending = useAppStore((state) => hasHourglass(state, friend.id));
+  const pending = useAppStore((state) => hasHourglassForFriend(state, friend.id));
 
   return (
     <FriendRow
@@ -24,19 +25,15 @@ function FriendListItem({ friend }: { friend: Friend }) {
 }
 
 export default function HomeScreen() {
+  const theme = useTheme();
+  const profile = useAppStore((state) => state.profile);
   const friends = useAppStore((state) => state.friends);
-  const meAnswered = useAppStore((state) => Boolean(state.selfAnswers[ME_ID]));
-  const waitingFriendsCount = useAppStore(
-    (state) =>
-      state.friends.filter((friend) => Boolean(state.guessesAboutMe[friend.id]) && !state.selfAnswers[ME_ID])
-        .length,
-  );
+  const waitingCount = useAppStore((state) => waitingForMeCount(state));
 
-  const meSubtitle = meAnswered
-    ? 'Heute schon beantwortet'
-    : waitingFriendsCount > 0
-      ? `${waitingFriendsCount} Freund${waitingFriendsCount === 1 ? '' : 'e'} warten auf dich`
-      : 'Noch nicht beantwortet';
+  const meSubtitle =
+    waitingCount > 0
+      ? `${waitingCount} Antwort${waitingCount === 1 ? '' : 'en'} steh${waitingCount === 1 ? 't' : 'en'} aus`
+      : 'Alles aktuell';
 
   return (
     <ThemedView style={styles.container}>
@@ -49,18 +46,25 @@ export default function HomeScreen() {
           ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
           ListHeaderComponent={
             <>
-              <ThemedText type="title" style={styles.heading}>
-                Do You Know?
-              </ThemedText>
+              <View style={styles.headerRow}>
+                <Pressable
+                  onPress={() => router.push('/profile')}
+                  style={[styles.profileButton, { backgroundColor: theme.backgroundSelected }]}>
+                  <ThemedText style={styles.profileEmoji}>{profile.avatarEmoji}</ThemedText>
+                </Pressable>
+                <ThemedText type="title" style={styles.heading}>
+                  Do You Know?
+                </ThemedText>
+              </View>
 
               <FriendRow
-                avatarEmoji="🙂"
-                name="Du"
+                avatarEmoji={profile.avatarEmoji}
+                name={profile.name}
                 streak={0}
                 hideStreak
-                pending={!meAnswered}
+                pending={waitingCount > 0}
                 subtitle={meSubtitle}
-                onPress={() => router.push('/me')}
+                onPress={() => router.push('/profile')}
               />
 
               <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
@@ -93,8 +97,26 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.five,
     gap: Spacing.one,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.four,
+    marginBottom: Spacing.two,
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileEmoji: {
+    fontSize: 20,
+  },
   heading: {
-    marginVertical: Spacing.four,
+    fontSize: 32,
+    lineHeight: 40,
   },
   sectionLabel: {
     marginTop: Spacing.four,
