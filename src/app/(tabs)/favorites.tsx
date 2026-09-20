@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
 import { ANSWER_LABELS, FavoriteItem, ME_ID } from '@/types';
@@ -18,6 +19,7 @@ function FavoriteRow({ item }: { item: FavoriteItem }) {
     return entries?.[entries.length - 1]?.value;
   });
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
+  const now = useEffectiveNow();
 
   if (!friend || !group) return null;
   const question = group.questions.find((q) => q.id === item.questionId);
@@ -28,8 +30,8 @@ function FavoriteRow({ item }: { item: FavoriteItem }) {
       <View style={styles.rowText}>
         <ThemedText type="small">{question?.text}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Du &amp; {friend.avatarEmoji} {friend.name}: {value ? ANSWER_LABELS[value] : ''} ·{' '}
-          {formatRelative(item.likedAt)}
+          Du &amp; {friend.avatarEmoji} {friend.name}: {value ? ANSWER_LABELS[value] : ''}
+          {now ? ` · ${formatRelative(item.likedAt, now)}` : ''}
         </ThemedText>
       </View>
       <Pressable onPress={() => toggleFavorite(item.friendId, item.groupId, item.questionId)}>

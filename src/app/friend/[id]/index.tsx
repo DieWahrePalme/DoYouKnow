@@ -6,10 +6,11 @@ import { ListRow } from '@/components/list-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { hasHourglassForGroup, latestAnswers, myGuessStatus, useAppStore } from '@/state/appStore';
+import { useEffectiveNow } from '@/hooks/use-effective-now';
+import { getTodaysGroupIdFor, hasHourglassForGroup, latestAnswers, myGuessStatus, useAppStore } from '@/state/appStore';
 import { Friend, QuestionGroup } from '@/types';
 
-function FriendGroupItem({ friend, group }: { friend: Friend; group: QuestionGroup }) {
+function FriendGroupItem({ friend, group, isToday }: { friend: Friend; group: QuestionGroup; isToday: boolean }) {
   const status = useAppStore((state) => myGuessStatus(state, friend.id, group.id));
   const pending = useAppStore((state) => hasHourglassForGroup(state, friend.id, group.id));
   const score = useAppStore((state) => {
@@ -26,6 +27,9 @@ function FriendGroupItem({ friend, group }: { friend: Friend; group: QuestionGro
     subtitle = `Wartet auf ${friend.name}`;
   } else {
     subtitle = `${score} / ${group.questions.length} richtig geraten`;
+  }
+  if (isToday) {
+    subtitle += ` · ${friend.name}s Thema heute`;
   }
 
   return (
@@ -48,6 +52,8 @@ export default function FriendGroupsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const friend = useAppStore((state) => state.friends.find((f) => f.id === id));
   const groups = useAppStore((state) => state.groups);
+  const now = useEffectiveNow();
+  const todaysGroupId = id && now ? getTodaysGroupIdFor(id, groups, now) : undefined;
 
   if (!friend) {
     return (
@@ -76,7 +82,12 @@ export default function FriendGroupsScreen() {
           </ThemedText>
           <View style={styles.groupList}>
             {groups.map((group) => (
-              <FriendGroupItem key={group.id} friend={friend} group={group} />
+              <FriendGroupItem
+                key={group.id}
+                friend={friend}
+                group={group}
+                isToday={group.id === todaysGroupId}
+              />
             ))}
           </View>
         </ScrollView>

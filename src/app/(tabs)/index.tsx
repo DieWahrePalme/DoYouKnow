@@ -2,11 +2,13 @@ import { router } from 'expo-router';
 import { FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CountdownTimer } from '@/components/countdown-timer';
 import { FriendRow } from '@/components/friend-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { getTodaysGroupId, hasHourglassForFriend, latestAnswers, useAppStore } from '@/state/appStore';
+import { useEffectiveNow } from '@/hooks/use-effective-now';
+import { getTodaysGroupIdFor, hasHourglassForFriend, latestAnswers, useAppStore } from '@/state/appStore';
 import { Friend, ME_ID } from '@/types';
 
 function FriendListItem({ friend }: { friend: Friend }) {
@@ -26,7 +28,11 @@ function FriendListItem({ friend }: { friend: Friend }) {
 function TodaysCard() {
   const profile = useAppStore((state) => state.profile);
   const groups = useAppStore((state) => state.groups);
-  const todaysGroupId = getTodaysGroupId(groups);
+  // Falls back to a fixed group (same on server prerender and first client
+  // paint) until mounted, then swaps to the real per-day pick - see
+  // useEffectiveNow for why this can't just read Date.now() directly.
+  const now = useEffectiveNow();
+  const todaysGroupId = now ? getTodaysGroupIdFor(ME_ID, groups, now) : groups[0].id;
   const todaysGroup = groups.find((g) => g.id === todaysGroupId)!;
   const answeredToday = useAppStore((state) => Boolean(latestAnswers(state.history[ME_ID]?.[todaysGroupId])));
 
@@ -36,7 +42,11 @@ function TodaysCard() {
       name={profile.name}
       streak={0}
       hideStreak
-      subtitle={`Heute: ${todaysGroup.icon} ${todaysGroup.name} · ${answeredToday ? 'schon aktualisiert' : 'jetzt beantworten'}`}
+      subtitle={
+        now
+          ? `Heute: ${todaysGroup.icon} ${todaysGroup.name} · ${answeredToday ? 'schon aktualisiert' : 'jetzt beantworten'}`
+          : 'Lädt …'
+      }
       onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: todaysGroupId } })}
     />
   );
@@ -56,6 +66,8 @@ export default function HomeScreen() {
           ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
           ListHeaderComponent={
             <>
+              <CountdownTimer />
+
               <ThemedText type="title" style={styles.heading}>
                 Do You Know?
               </ThemedText>

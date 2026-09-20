@@ -7,9 +7,11 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { AVATAR_CHOICES } from '@/data/mockData';
+import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import {
   answeredGroupCount,
+  getTodaysGroupIdFor,
   latestAnswers,
   theirGuessStatus,
   totalGuessesCollected,
@@ -31,9 +33,10 @@ function StatColumn({ value, label }: { value: number; label: string }) {
   );
 }
 
-function GroupTile({ group }: { group: QuestionGroup }) {
+function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean }) {
   const theme = useTheme();
   const historyForGroup = useAppStore((state) => state.history[ME_ID]?.[group.id]);
+  const now = useEffectiveNow();
   const waitingCount = useAppStore(
     (state) =>
       state.friends.filter((friend) => theirGuessStatus(state, friend.id, group.id) === 'waiting_for_truth')
@@ -44,18 +47,25 @@ function GroupTile({ group }: { group: QuestionGroup }) {
   let caption: string;
   if (!currentAnswers) {
     caption = 'Offen';
+  } else if (!now) {
+    caption = '';
   } else {
     const mostRecentAt = Object.values(historyForGroup!)
       .map((entries) => entries[entries.length - 1].at)
       .sort()
       .at(-1)!;
-    caption = formatRelative(mostRecentAt);
+    caption = formatRelative(mostRecentAt, now);
   }
 
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: group.id } })}
       style={[styles.tile, { backgroundColor: theme.backgroundElement }]}>
+      {isToday ? (
+        <View style={[styles.todayBadge, { backgroundColor: theme.background, borderColor: theme.text }]}>
+          <ThemedText style={styles.todayBadgeText}>Heute</ThemedText>
+        </View>
+      ) : null}
       {waitingCount > 0 ? (
         <View style={[styles.tileBadge, { backgroundColor: theme.text }]}>
           <ThemedText style={[styles.tileBadgeText, { color: theme.background }]}>{waitingCount}</ThemedText>
@@ -81,6 +91,8 @@ export default function ProfileScreen() {
   const collectedCount = useAppStore((state) => totalGuessesCollected(state));
   const updateProfileName = useAppStore((state) => state.updateProfileName);
   const updateProfileAvatar = useAppStore((state) => state.updateProfileAvatar);
+  const now = useEffectiveNow();
+  const todaysGroupId = now ? getTodaysGroupIdFor(ME_ID, groups, now) : groups[0].id;
 
   const [isPickingAvatar, setIsPickingAvatar] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -162,7 +174,7 @@ export default function ProfileScreen() {
           </ThemedText>
           <View style={styles.grid}>
             {groups.map((group) => (
-              <GroupTile key={group.id} group={group} />
+              <GroupTile key={group.id} group={group} isToday={group.id === todaysGroupId} />
             ))}
           </View>
         </ScrollView>
@@ -290,6 +302,19 @@ const styles = StyleSheet.create({
   },
   tileBadgeText: {
     fontSize: 10,
+    fontWeight: '700',
+  },
+  todayBadge: {
+    position: 'absolute',
+    top: Spacing.one,
+    left: Spacing.one,
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  todayBadgeText: {
+    fontSize: 9,
     fontWeight: '700',
   },
   tileIcon: {

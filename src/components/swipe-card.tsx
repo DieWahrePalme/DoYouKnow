@@ -5,6 +5,7 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -27,12 +28,17 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
   const theme = useTheme();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+  const neverPulse = useSharedValue(0);
 
   function finish(value: AnswerValue, exitX: number, exitY: number) {
     translateX.value = withTiming(exitX, { duration: 180 });
     translateY.value = withTiming(exitY, { duration: 180 }, (finished) => {
       if (finished) runOnJS(onAnswer)(value);
     });
+  }
+
+  function answerNever() {
+    onAnswer('never');
   }
 
   const pan = Gesture.Pan()
@@ -48,16 +54,32 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
       const absY = Math.abs(dy);
 
       if (absX > absY && absX > SWIPE_THRESHOLD) {
-        finish(dx > 0 ? 'always' : 'never', dx > 0 ? EXIT_DISTANCE : -EXIT_DISTANCE, dy);
+        finish(dx > 0 ? 'yes' : 'no', dx > 0 ? EXIT_DISTANCE : -EXIT_DISTANCE, dy);
         return;
       }
       if (absY >= absX && absY > SWIPE_THRESHOLD) {
-        finish(dy < 0 ? 'often' : 'sometimes', dx, dy < 0 ? -EXIT_DISTANCE : EXIT_DISTANCE);
+        finish(dy < 0 ? 'leanYes' : 'leanNo', dx, dy < 0 ? -EXIT_DISTANCE : EXIT_DISTANCE);
         return;
       }
       translateX.value = withSpring(0);
       translateY.value = withSpring(0);
     });
+
+  // A hard "Nie" is a deliberate double-tap on the card, not a swipe -
+  // Exclusive lets the tap gesture claim the touch before Pan treats it as a drag.
+  const doubleTap = Gesture.Tap()
+    .enabled(active)
+    .numberOfTaps(2)
+    .onStart(() => {
+      neverPulse.value = withSequence(
+        withTiming(1, { duration: 120 }),
+        withTiming(0, { duration: 220 }, (finished) => {
+          if (finished) runOnJS(answerNever)();
+        }),
+      );
+    });
+
+  const gesture = Gesture.Exclusive(doubleTap, pan);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [
@@ -67,46 +89,58 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
     ],
   }));
 
-  const alwaysStampStyle = useAnimatedStyle(() => ({
+  const yesStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
   }));
-  const neverStampStyle = useAnimatedStyle(() => ({
+  const noStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp'),
   }));
-  const oftenStampStyle = useAnimatedStyle(() => ({
+  const leanYesStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateY.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp'),
   }));
-  const sometimesStampStyle = useAnimatedStyle(() => ({
+  const leanNoStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateY.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
+  }));
+  const neverStampStyle = useAnimatedStyle(() => ({
+    opacity: neverPulse.value,
+    transform: [{ scale: interpolate(neverPulse.value, [0, 1], [0.7, 1.15]) }],
   }));
 
   return (
-    <GestureDetector gesture={pan}>
+    <GestureDetector gesture={gesture}>
       <Animated.View style={[styles.card, { backgroundColor: theme.backgroundElement }, cardStyle]}>
-        <Animated.View style={[styles.stamp, styles.stampRight, alwaysStampStyle]}>
-          <ThemedText type="title" style={styles.stampTextAlways}>
-            IMMER
+        <Animated.View style={[styles.stamp, styles.stampRight, yesStampStyle]}>
+          <ThemedText type="title" style={styles.stampTextYes}>
+            JA
           </ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampLeft, neverStampStyle]}>
+        <Animated.View style={[styles.stamp, styles.stampLeft, noStampStyle]}>
+          <ThemedText type="title" style={styles.stampTextNo}>
+            NEIN
+          </ThemedText>
+        </Animated.View>
+        <Animated.View style={[styles.stamp, styles.stampTop, leanYesStampStyle]}>
+          <ThemedText type="subtitle" style={styles.stampTextLeanYes}>
+            EHER JA
+          </ThemedText>
+        </Animated.View>
+        <Animated.View style={[styles.stamp, styles.stampBottom, leanNoStampStyle]}>
+          <ThemedText type="subtitle" style={styles.stampTextLeanNo}>
+            EHER NEIN
+          </ThemedText>
+        </Animated.View>
+        <Animated.View style={[styles.neverStamp, neverStampStyle]} pointerEvents="none">
           <ThemedText type="title" style={styles.stampTextNever}>
             NIE
-          </ThemedText>
-        </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampTop, oftenStampStyle]}>
-          <ThemedText type="subtitle" style={styles.stampTextOften}>
-            OFT
-          </ThemedText>
-        </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampBottom, sometimesStampStyle]}>
-          <ThemedText type="subtitle" style={styles.stampTextSometimes}>
-            MANCHMAL
           </ThemedText>
         </Animated.View>
 
         <View style={styles.questionWrap}>
           <ThemedText type="subtitle" style={styles.questionText}>
             {question.text}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+            2× tippen für ein klares Nie
           </ThemedText>
         </View>
       </Animated.View>
@@ -132,8 +166,12 @@ const styles = StyleSheet.create({
   },
   questionWrap: {
     alignItems: 'center',
+    gap: Spacing.two,
   },
   questionText: {
+    textAlign: 'center',
+  },
+  hint: {
     textAlign: 'center',
   },
   stamp: {
@@ -165,16 +203,32 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderColor: '#FF3B30',
   },
-  stampTextAlways: {
+  neverStamp: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -70,
+    marginTop: -30,
+    width: 140,
+    borderWidth: 4,
+    borderRadius: Spacing.two,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    borderColor: '#8E1B1B',
+  },
+  stampTextYes: {
     color: '#34C759',
+  },
+  stampTextNo: {
+    color: '#FF3B30',
+  },
+  stampTextLeanYes: {
+    color: '#34C759',
+  },
+  stampTextLeanNo: {
+    color: '#FF3B30',
   },
   stampTextNever: {
-    color: '#FF3B30',
-  },
-  stampTextOften: {
-    color: '#34C759',
-  },
-  stampTextSometimes: {
-    color: '#FF3B30',
+    color: '#8E1B1B',
   },
 });

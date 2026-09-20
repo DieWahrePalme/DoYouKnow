@@ -1,10 +1,16 @@
-export type AnswerValue = 'never' | 'sometimes' | 'often' | 'always';
+/**
+ * `never` ("Nie") is a stronger, deliberate extreme reached via a double-tap
+ * on the card's center - distinct from the regular "no" swipe. The other
+ * four are the ordinary agreement scale reached by swiping.
+ */
+export type AnswerValue = 'never' | 'no' | 'leanNo' | 'leanYes' | 'yes';
 
 export const ANSWER_LABELS: Record<AnswerValue, string> = {
   never: 'Nie',
-  sometimes: 'Manchmal',
-  often: 'Oft',
-  always: 'Immer',
+  no: 'Nein',
+  leanNo: 'Eher nein',
+  leanYes: 'Eher ja',
+  yes: 'Ja',
 };
 
 export interface Question {

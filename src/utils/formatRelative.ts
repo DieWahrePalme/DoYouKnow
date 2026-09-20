@@ -1,5 +1,5 @@
-export function formatRelative(iso: string): string {
-  const days = Math.round((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+export function formatRelative(iso: string, now: Date = new Date()): string {
+  const days = Math.round((now.getTime() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
   if (days <= 0) return 'heute';
   if (days === 1) return 'gestern';
   if (days < 30) return `vor ${days} Tagen`;

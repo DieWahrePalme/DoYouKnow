@@ -23,11 +23,51 @@ interface AppState {
   guessesAboutMe: Record<string, Record<string, AnswerMap>>;
   streakBumpedToday: Record<string, boolean>;
   favorites: FavoriteItem[];
+  /**
+   * Manual offset from real wall-clock time, in ms - lets the day boundary
+   * (and everything derived from it) be fast-forwarded for testing without
+   * waiting for real midnight. A real backend would derive "now" from its
+   * own clock/timezone instead of a client-side offset like this.
+   */
+  timeOffsetMs: number;
+  /** The last calendar day (UTC) the streak/rollover check has processed. */
+  lastProcessedDay: string;
   updateProfileName: (name: string) => void;
   updateProfileAvatar: (avatarEmoji: string) => void;
   submitSelfAnswers: (subjectId: string, groupId: string, answers: AnswerMap) => void;
   submitGuess: (friendId: string, groupId: string, answers: AnswerMap) => void;
   toggleFavorite: (friendId: string, groupId: string, questionId: string) => void;
+  advanceTimeBy: (ms: number) => void;
+  jumpToNextDay: () => void;
+  checkDayRollover: () => void;
+}
+
+function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/** The app's current notion of "now" - always read through this, never `new Date()`/`Date.now()` directly. */
+export function getEffectiveNow(state: AppState): Date {
+  return new Date(Date.now() + state.timeOffsetMs);
+}
+
+export function msUntilNextDay(now: Date): number {
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+  return next.getTime() - now.getTime();
+}
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/** Deterministic per-person daily pick - different people get different groups, rotating at midnight. */
+export function getTodaysGroupIdFor(subjectId: string, groups: QuestionGroup[], now: Date): string {
+  const index = hashString(`${subjectId}:${dayKey(now)}`) % groups.length;
+  return groups[index].id;
 }
 
 /** The current value per question, or undefined if this group was never completed. */
@@ -76,12 +116,39 @@ export const useAppStore = create<AppState>((set, get) => {
     guessesAboutMe: INITIAL_GUESSES_ABOUT_ME,
     streakBumpedToday: {},
     favorites: [],
+    timeOffsetMs: 0,
+    lastProcessedDay: dayKey(new Date()),
 
     updateProfileName: (name) => set((state) => ({ profile: { ...state.profile, name } })),
     updateProfileAvatar: (avatarEmoji) => set((state) => ({ profile: { ...state.profile, avatarEmoji } })),
 
+    advanceTimeBy: (ms) => {
+      set((state) => ({ timeOffsetMs: state.timeOffsetMs + ms }));
+      get().checkDayRollover();
+    },
+
+    jumpToNextDay: () => {
+      const state = get();
+      const delta = msUntilNextDay(getEffectiveNow(state)) + 1000;
+      set({ timeOffsetMs: state.timeOffsetMs + delta });
+      get().checkDayRollover();
+    },
+
+    checkDayRollover: () => {
+      const state = get();
+      const today = dayKey(getEffectiveNow(state));
+      if (today === state.lastProcessedDay) return;
+      // Nobody resolved anything with a friend during the day that just
+      // ended -> the flame goes out for both sides.
+      set((s) => ({
+        friends: s.friends.map((f) => (s.streakBumpedToday[f.id] ? f : { ...f, streak: 0 })),
+        streakBumpedToday: {},
+        lastProcessedDay: today,
+      }));
+    },
+
     submitSelfAnswers: (subjectId, groupId, answers) => {
-      const at = new Date().toISOString();
+      const at = getEffectiveNow(get()).toISOString();
       set((state) => {
         const groupQuestions = state.groups.find((g) => g.id === groupId)?.questions ?? [];
         const existingForSubject = state.history[subjectId] ?? {};
@@ -118,12 +185,13 @@ export const useAppStore = create<AppState>((set, get) => {
 
     toggleFavorite: (friendId, groupId, questionId) => {
       const id = `${friendId}:${groupId}:${questionId}`;
+      const likedAt = getEffectiveNow(get()).toISOString();
       set((state) => {
         const exists = state.favorites.some((f) => f.id === id);
         return {
           favorites: exists
             ? state.favorites.filter((f) => f.id !== id)
-            : [...state.favorites, { id, friendId, groupId, questionId, likedAt: new Date().toISOString() }],
+            : [...state.favorites, { id, friendId, groupId, questionId, likedAt }],
         };
       });
     },
@@ -162,13 +230,6 @@ export function waitingForMeCount(state: AppState): number {
     }
   }
   return count;
-}
-
-/** Deterministic daily pick among the groups - same for everyone on a given day, changes overnight. */
-export function getTodaysGroupId(groups: QuestionGroup[]): string {
-  const startOfYear = new Date(new Date().getFullYear(), 0, 0).getTime();
-  const dayOfYear = Math.floor((Date.now() - startOfYear) / 86_400_000);
-  return groups[dayOfYear % groups.length].id;
 }
 
 export interface MatchResult {

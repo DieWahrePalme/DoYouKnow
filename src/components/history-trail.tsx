@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { ANSWER_LABELS, AnswerEntry } from '@/types';
 import { formatRelative } from '@/utils/formatRelative';
 
@@ -11,6 +12,7 @@ interface HistoryTrailProps {
 }
 
 export function HistoryTrail({ questionText, entries }: HistoryTrailProps) {
+  const now = useEffectiveNow();
   const past = entries.slice(0, -1);
   const latest = entries[entries.length - 1];
 
@@ -18,10 +20,13 @@ export function HistoryTrail({ questionText, entries }: HistoryTrailProps) {
     <View style={styles.wrap}>
       <ThemedText type="small">{questionText}</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        {past.map((entry) => `${formatRelative(entry.at)}: ${ANSWER_LABELS[entry.value]}`).join(' → ')}
-        {past.length > 0 ? ' → ' : ''}
+        {now
+          ? past.map((entry) => `${formatRelative(entry.at, now)}: ${ANSWER_LABELS[entry.value]}`).join(' → ')
+          : ''}
+        {now && past.length > 0 ? ' → ' : ''}
         <ThemedText type="smallBold">
-          {formatRelative(latest.at)}: {ANSWER_LABELS[latest.value]}
+          {now ? `${formatRelative(latest.at, now)}: ` : ''}
+          {ANSWER_LABELS[latest.value]}
         </ThemedText>
       </ThemedText>
     </View>
