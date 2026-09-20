@@ -7,15 +7,15 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
-import { ANSWER_LABELS, FavoriteItem, ME_ID } from '@/types';
+import { ANSWER_LABELS, FavoriteItem } from '@/types';
 import { formatRelative } from '@/utils/formatRelative';
 
 function FavoriteRow({ item }: { item: FavoriteItem }) {
   const theme = useTheme();
-  const friend = useAppStore((state) => state.friends.find((f) => f.id === item.friendId));
+  const friend = useAppStore((state) => state.users[item.friendId]);
   const group = useAppStore((state) => state.groups.find((g) => g.id === item.groupId));
   const value = useAppStore((state) => {
-    const entries = state.history[ME_ID]?.[item.groupId]?.[item.questionId];
+    const entries = state.history[item.ownerId]?.[item.groupId]?.[item.questionId];
     return entries?.[entries.length - 1]?.value;
   });
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
@@ -43,7 +43,10 @@ function FavoriteRow({ item }: { item: FavoriteItem }) {
 
 export default function FavoritesScreen() {
   const favorites = useAppStore((state) => state.favorites);
-  const sorted = [...favorites].sort((a, b) => b.likedAt.localeCompare(a.likedAt));
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const sorted = favorites
+    .filter((item) => item.ownerId === activeUserId)
+    .sort((a, b) => b.likedAt.localeCompare(a.likedAt));
 
   return (
     <ThemedView style={styles.container}>

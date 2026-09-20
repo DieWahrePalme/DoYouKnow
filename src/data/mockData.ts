@@ -1,4 +1,5 @@
-import { AnswerMap, AnswerValue, Friend, HistoryMap, Profile, QuestionGroup } from '@/types';
+import { AnswerMap, AnswerValue, HistoryMap, QuestionGroup, UserProfile } from '@/types';
+import { pairKey } from '@/utils/pairKey';
 
 const GROUP_DEFS: { id: string; name: string; icon: string; questions: string[] }[] = [
   {
@@ -737,19 +738,27 @@ export const QUESTION_GROUPS: QuestionGroup[] = GROUP_DEFS.map((group) => ({
   questions: group.questions.map((text, index) => ({ id: `${group.id}-q${index + 1}`, text })),
 }));
 
-export const FRIENDS: Friend[] = [
-  { id: 'lena', name: 'Lena', avatarEmoji: '🦊', streak: 12 },
-  { id: 'tom', name: 'Tom', avatarEmoji: '🐨', streak: 5 },
-  { id: 'sara', name: 'Sara', avatarEmoji: '🐢', streak: 0 },
-  { id: 'mia', name: 'Mia', avatarEmoji: '🐝', streak: 3 },
+/**
+ * The two switchable test identities - lets one person try both sides of
+ * the app (answer, guess, match) on the same device before a real
+ * multi-account backend exists. "Momo" carries over what used to be the
+ * single fixed "me" persona, so its seeded history/streaks stay meaningful;
+ * "Bibble" starts on a blank slate.
+ */
+export const TEST_USERS: UserProfile[] = [
+  { id: 'momo', name: 'Momo', avatarEmoji: '🙂' },
+  { id: 'bibble', name: 'Bibble', avatarEmoji: '🦋' },
 ];
 
-export const DEFAULT_PROFILE: Profile = {
-  name: 'Du',
-  avatarEmoji: '🙂',
-};
+/** Generic NPC friends, shared by whichever test user is active. */
+export const FRIENDS: UserProfile[] = [
+  { id: 'lena', name: 'Lena', avatarEmoji: '🦊' },
+  { id: 'tom', name: 'Tom', avatarEmoji: '🐨' },
+  { id: 'sara', name: 'Sara', avatarEmoji: '🐢' },
+  { id: 'mia', name: 'Mia', avatarEmoji: '🐝' },
+];
 
-export const AVATAR_CHOICES = ['🙂', '😎', '🦊', '🐨', '🐢', '🐝', '🐼', '🦁', '🐧', '🦄', '🐙', '🌵'];
+export const AVATAR_CHOICES = ['🙂', '😎', '🦊', '🐨', '🐢', '🐝', '🐼', '🦁', '🐧', '🦄', '🐙', '🌵', '🦋', '🌸'];
 
 function monthsAgo(n: number): string {
   const d = new Date();
@@ -790,7 +799,7 @@ const sportIds = QUESTION_GROUPS.find((g) => g.id === 'sport')!.questions.map((q
  * timestamped entry per question - nothing is ever overwritten.
  */
 export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {
-  me: {
+  momo: {
     // Demonstrates exactly the "changed my mind over the year" use case:
     // question 3 ("lieber campen") went Nie -> Eher ja -> (answer again to see it become "Ja").
     urlaub: mergeRounds(
@@ -802,24 +811,33 @@ export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {
     sport: round(sportIds, ['yes', 'leanYes', 'no', 'leanNo', 'yes'], daysAgo(2)),
   },
   lena: {
-    // High overlap with "me" on Urlaub - shows up as a strong Match.
+    // High overlap with Momo on Urlaub - shows up as a strong Match.
     urlaub: round(urlaubIds, ['leanNo', 'no', 'leanYes', 'yes', 'leanNo'], daysAgo(5)),
   },
   mia: {
-    // Mostly different from "me" on Urlaub - shows up as a weak Match.
+    // Mostly different from Momo on Urlaub - shows up as a weak Match.
     urlaub: round(urlaubIds, ['yes', 'yes', 'no', 'no', 'no'], daysAgo(10)),
   },
 };
 
-/** Guesses a friend already made about me, keyed by friend id -> group id -> answers. */
-export const INITIAL_GUESSES_ABOUT_ME: Record<string, Record<string, AnswerMap>> = {
+/** guesserId -> subjectId -> groupId -> the guesser's guess about that subject. */
+export const INITIAL_GUESSES: Record<string, Record<string, Record<string, AnswerMap>>> = {
   lena: {
-    freizeit: {
-      'freizeit-q1': 'leanYes',
-      'freizeit-q2': 'yes',
-      'freizeit-q3': 'no',
-      'freizeit-q4': 'leanNo',
-      'freizeit-q5': 'yes',
+    momo: {
+      freizeit: {
+        'freizeit-q1': 'leanYes',
+        'freizeit-q2': 'yes',
+        'freizeit-q3': 'no',
+        'freizeit-q4': 'leanNo',
+        'freizeit-q5': 'yes',
+      },
     },
   },
+};
+
+/** pairKey(a, b) -> streak. Bibble starts fresh with everyone (absent = 0). */
+export const INITIAL_STREAKS: Record<string, number> = {
+  [pairKey('lena', 'momo')]: 12,
+  [pairKey('momo', 'tom')]: 5,
+  [pairKey('mia', 'momo')]: 3,
 };

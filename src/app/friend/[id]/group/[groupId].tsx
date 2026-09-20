@@ -16,10 +16,12 @@ export default function FriendGroupGuessScreen() {
   const { id, groupId } = useLocalSearchParams<{ id: string; groupId: string }>();
   const theme = useTheme();
 
-  const friend = useAppStore((state) => state.friends.find((f) => f.id === id));
+  const friend = useAppStore((state) => state.users[id ?? '']);
   const group = useAppStore((state) => state.groups.find((g) => g.id === groupId));
   const historyForGroup = useAppStore((state) => state.history[id ?? '']?.[groupId ?? '']);
-  const existingGuess = useAppStore((state) => state.myGuesses[id ?? '']?.[groupId ?? '']);
+  const existingGuess = useAppStore(
+    (state) => state.guesses[state.activeUserId]?.[id ?? '']?.[groupId ?? ''],
+  );
   const submitGuess = useAppStore((state) => state.submitGuess);
   const [localGuess, setLocalGuess] = useState<AnswerMap | undefined>(undefined);
 

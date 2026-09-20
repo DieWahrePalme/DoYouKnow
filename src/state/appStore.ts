@@ -1,26 +1,25 @@
 import { create } from 'zustand';
 
-import {
-  DEFAULT_PROFILE,
-  FRIENDS,
-  INITIAL_GUESSES_ABOUT_ME,
-  INITIAL_HISTORY,
-  QUESTION_GROUPS,
-} from '@/data/mockData';
-import { AnswerMap, FavoriteItem, Friend, HistoryMap, ME_ID, Profile, QuestionGroup } from '@/types';
+import { FRIENDS, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS, TEST_USERS } from '@/data/mockData';
+import { AnswerMap, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
+import { pairKey } from '@/utils/pairKey';
 
 export type ResolutionStatus = 'not_guessed' | 'waiting_for_truth' | 'resolved';
 
 interface AppState {
-  profile: Profile;
-  friends: Friend[];
+  /** Every known person - the switchable test identities plus generic NPC friends. */
+  users: Record<string, UserProfile>;
+  /** Identities that can be switched to via switchActiveUser (Momo/Bibble). */
+  testUserIds: string[];
+  /** Whoever "I" currently am - everything else in the app is relative to this. */
+  activeUserId: string;
   groups: QuestionGroup[];
   /** subjectId -> groupId -> HistoryMap. Missing group = never answered. */
   history: Record<string, Record<string, HistoryMap>>;
-  /** friendId -> groupId -> my guess about that friend. */
-  myGuesses: Record<string, Record<string, AnswerMap>>;
-  /** friendId -> groupId -> that friend's guess about me. */
-  guessesAboutMe: Record<string, Record<string, AnswerMap>>;
+  /** guesserId -> subjectId -> groupId -> the guesser's guess about that subject. */
+  guesses: Record<string, Record<string, Record<string, AnswerMap>>>;
+  /** pairKey(a, b) -> streak between those two people. */
+  streaks: Record<string, number>;
   streakBumpedToday: Record<string, boolean>;
   favorites: FavoriteItem[];
   /**
@@ -32,10 +31,11 @@ interface AppState {
   timeOffsetMs: number;
   /** The last calendar day (UTC) the streak/rollover check has processed. */
   lastProcessedDay: string;
+  switchActiveUser: (userId: string) => void;
   updateProfileName: (name: string) => void;
   updateProfileAvatar: (avatarEmoji: string) => void;
   submitSelfAnswers: (subjectId: string, groupId: string, answers: AnswerMap) => void;
-  submitGuess: (friendId: string, groupId: string, answers: AnswerMap) => void;
+  submitGuess: (subjectId: string, groupId: string, answers: AnswerMap) => void;
   toggleFavorite: (friendId: string, groupId: string, questionId: string) => void;
   advanceTimeBy: (ms: number) => void;
   jumpToNextDay: () => void;
@@ -89,38 +89,57 @@ function statusOf(guess: AnswerMap | undefined, truth: AnswerMap | undefined): R
 }
 
 export const useAppStore = create<AppState>((set, get) => {
-  function bumpStreakIfResolved(friendId: string) {
+  function resolvedBetween(userAId: string, userBId: string, groupId: string): boolean {
     const state = get();
-    if (state.streakBumpedToday[friendId]) return;
-
-    const anyResolved = state.groups.some(
-      (group) =>
-        myGuessStatus(state, friendId, group.id) === 'resolved' ||
-        theirGuessStatus(state, friendId, group.id) === 'resolved',
+    const aGuessedB = statusOf(
+      state.guesses[userAId]?.[userBId]?.[groupId],
+      latestAnswers(state.history[userBId]?.[groupId]),
     );
+    const bGuessedA = statusOf(
+      state.guesses[userBId]?.[userAId]?.[groupId],
+      latestAnswers(state.history[userAId]?.[groupId]),
+    );
+    return aGuessedB === 'resolved' || bGuessedA === 'resolved';
+  }
+
+  function bumpStreakIfResolved(userAId: string, userBId: string) {
+    const state = get();
+    const key = pairKey(userAId, userBId);
+    if (state.streakBumpedToday[key]) return;
+
+    const anyResolved = state.groups.some((group) => resolvedBetween(userAId, userBId, group.id));
 
     if (anyResolved) {
       set((s) => ({
-        friends: s.friends.map((f) => (f.id === friendId ? { ...f, streak: f.streak + 1 } : f)),
-        streakBumpedToday: { ...s.streakBumpedToday, [friendId]: true },
+        streaks: { ...s.streaks, [key]: (s.streaks[key] ?? 0) + 1 },
+        streakBumpedToday: { ...s.streakBumpedToday, [key]: true },
       }));
     }
   }
 
   return {
-    profile: DEFAULT_PROFILE,
-    friends: FRIENDS,
+    users: Object.fromEntries([...TEST_USERS, ...FRIENDS].map((u) => [u.id, u])),
+    testUserIds: TEST_USERS.map((u) => u.id),
+    activeUserId: TEST_USERS[0].id,
     groups: QUESTION_GROUPS,
     history: INITIAL_HISTORY,
-    myGuesses: {},
-    guessesAboutMe: INITIAL_GUESSES_ABOUT_ME,
+    guesses: INITIAL_GUESSES,
+    streaks: INITIAL_STREAKS,
     streakBumpedToday: {},
     favorites: [],
     timeOffsetMs: 0,
     lastProcessedDay: dayKey(new Date()),
 
-    updateProfileName: (name) => set((state) => ({ profile: { ...state.profile, name } })),
-    updateProfileAvatar: (avatarEmoji) => set((state) => ({ profile: { ...state.profile, avatarEmoji } })),
+    switchActiveUser: (userId) => set({ activeUserId: userId }),
+
+    updateProfileName: (name) =>
+      set((state) => ({
+        users: { ...state.users, [state.activeUserId]: { ...state.users[state.activeUserId], name } },
+      })),
+    updateProfileAvatar: (avatarEmoji) =>
+      set((state) => ({
+        users: { ...state.users, [state.activeUserId]: { ...state.users[state.activeUserId], avatarEmoji } },
+      })),
 
     advanceTimeBy: (ms) => {
       set((state) => ({ timeOffsetMs: state.timeOffsetMs + ms }));
@@ -138,13 +157,14 @@ export const useAppStore = create<AppState>((set, get) => {
       const state = get();
       const today = dayKey(getEffectiveNow(state));
       if (today === state.lastProcessedDay) return;
-      // Nobody resolved anything with a friend during the day that just
-      // ended -> the flame goes out for both sides.
-      set((s) => ({
-        friends: s.friends.map((f) => (s.streakBumpedToday[f.id] ? f : { ...f, streak: 0 })),
-        streakBumpedToday: {},
-        lastProcessedDay: today,
-      }));
+      // Nobody resolved anything for a pair during the day that just ended -> their flame goes out.
+      set((s) => {
+        const nextStreaks: Record<string, number> = {};
+        for (const key of Object.keys(s.streaks)) {
+          nextStreaks[key] = s.streakBumpedToday[key] ? s.streaks[key] : 0;
+        }
+        return { streaks: nextStreaks, streakBumpedToday: {}, lastProcessedDay: today };
+      });
     },
 
     submitSelfAnswers: (subjectId, groupId, answers) => {
@@ -166,32 +186,36 @@ export const useAppStore = create<AppState>((set, get) => {
         };
       });
 
-      if (subjectId === ME_ID) {
-        get().friends.forEach((friend) => bumpStreakIfResolved(friend.id));
-      } else {
-        bumpStreakIfResolved(subjectId);
+      // Answering can unlock any pending guess anyone else already made about this subject.
+      for (const otherId of Object.keys(get().users)) {
+        if (otherId !== subjectId) bumpStreakIfResolved(subjectId, otherId);
       }
     },
 
-    submitGuess: (friendId, groupId, answers) => {
+    submitGuess: (subjectId, groupId, answers) => {
+      const guesserId = get().activeUserId;
       set((state) => ({
-        myGuesses: {
-          ...state.myGuesses,
-          [friendId]: { ...(state.myGuesses[friendId] ?? {}), [groupId]: answers },
+        guesses: {
+          ...state.guesses,
+          [guesserId]: {
+            ...(state.guesses[guesserId] ?? {}),
+            [subjectId]: { ...(state.guesses[guesserId]?.[subjectId] ?? {}), [groupId]: answers },
+          },
         },
       }));
-      bumpStreakIfResolved(friendId);
+      bumpStreakIfResolved(guesserId, subjectId);
     },
 
     toggleFavorite: (friendId, groupId, questionId) => {
-      const id = `${friendId}:${groupId}:${questionId}`;
+      const ownerId = get().activeUserId;
+      const id = `${ownerId}:${friendId}:${groupId}:${questionId}`;
       const likedAt = getEffectiveNow(get()).toISOString();
       set((state) => {
         const exists = state.favorites.some((f) => f.id === id);
         return {
           favorites: exists
             ? state.favorites.filter((f) => f.id !== id)
-            : [...state.favorites, { id, friendId, groupId, questionId, likedAt }],
+            : [...state.favorites, { id, ownerId, friendId, groupId, questionId, likedAt }],
         };
       });
     },
@@ -199,14 +223,14 @@ export const useAppStore = create<AppState>((set, get) => {
 });
 
 export function myGuessStatus(state: AppState, friendId: string, groupId: string): ResolutionStatus {
-  const guess = state.myGuesses[friendId]?.[groupId];
+  const guess = state.guesses[state.activeUserId]?.[friendId]?.[groupId];
   const truth = latestAnswers(state.history[friendId]?.[groupId]);
   return statusOf(guess, truth);
 }
 
 export function theirGuessStatus(state: AppState, friendId: string, groupId: string): ResolutionStatus {
-  const guess = state.guessesAboutMe[friendId]?.[groupId];
-  const truth = latestAnswers(state.history[ME_ID]?.[groupId]);
+  const guess = state.guesses[friendId]?.[state.activeUserId]?.[groupId];
+  const truth = latestAnswers(state.history[state.activeUserId]?.[groupId]);
   return statusOf(guess, truth);
 }
 
@@ -221,15 +245,20 @@ export function hasHourglassForFriend(state: AppState, friendId: string): boolea
   return state.groups.some((group) => hasHourglassForGroup(state, friendId, group.id));
 }
 
-/** How many of MY groups friends are waiting on me to answer, across all friends. */
+/** How many of my groups friends are waiting on me to answer, across everyone. */
 export function waitingForMeCount(state: AppState): number {
   let count = 0;
-  for (const friend of state.friends) {
+  for (const otherId of Object.keys(state.users)) {
+    if (otherId === state.activeUserId) continue;
     for (const group of state.groups) {
-      if (theirGuessStatus(state, friend.id, group.id) === 'waiting_for_truth') count++;
+      if (theirGuessStatus(state, otherId, group.id) === 'waiting_for_truth') count++;
     }
   }
   return count;
+}
+
+export function streakWith(state: AppState, friendId: string): number {
+  return state.streaks[pairKey(state.activeUserId, friendId)] ?? 0;
 }
 
 export interface MatchResult {
@@ -243,7 +272,7 @@ export function matchWithFriend(state: AppState, friendId: string): MatchResult 
   let matches = 0;
   let total = 0;
   for (const group of state.groups) {
-    const mine = latestAnswers(state.history[ME_ID]?.[group.id]);
+    const mine = latestAnswers(state.history[state.activeUserId]?.[group.id]);
     const theirs = latestAnswers(state.history[friendId]?.[group.id]);
     if (!mine || !theirs) continue;
     for (const question of group.questions) {
@@ -258,7 +287,7 @@ export function matchWithFriend(state: AppState, friendId: string): MatchResult 
 export function sharedAnswers(state: AppState, friendId: string) {
   const shared: { group: QuestionGroup; questionId: string; value: AnswerMap[string] }[] = [];
   for (const group of state.groups) {
-    const mine = latestAnswers(state.history[ME_ID]?.[group.id]);
+    const mine = latestAnswers(state.history[state.activeUserId]?.[group.id]);
     const theirs = latestAnswers(state.history[friendId]?.[group.id]);
     if (!mine || !theirs) continue;
     for (const question of group.questions) {
@@ -272,10 +301,16 @@ export function sharedAnswers(state: AppState, friendId: string) {
 
 /** How many of my own groups I've completed at least once. */
 export function answeredGroupCount(state: AppState): number {
-  return state.groups.filter((group) => Boolean(latestAnswers(state.history[ME_ID]?.[group.id]))).length;
+  return state.groups.filter((group) => Boolean(latestAnswers(state.history[state.activeUserId]?.[group.id])))
+    .length;
 }
 
 /** Total guesses friends have made about me, across all groups (resolved or still pending). */
 export function totalGuessesCollected(state: AppState): number {
-  return Object.values(state.guessesAboutMe).reduce((sum, byGroup) => sum + Object.keys(byGroup).length, 0);
+  let count = 0;
+  for (const guesserId of Object.keys(state.guesses)) {
+    const bySubject = state.guesses[guesserId]?.[state.activeUserId];
+    if (bySubject) count += Object.keys(bySubject).length;
+  }
+  return count;
 }

@@ -23,7 +23,7 @@ export default function TabsLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const pathname = usePathname();
-  const avatarEmoji = useAppStore((state) => state.profile.avatarEmoji);
+  const avatarEmoji = useAppStore((state) => state.users[state.activeUserId].avatarEmoji);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

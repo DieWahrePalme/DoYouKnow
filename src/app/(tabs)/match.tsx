@@ -8,9 +8,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { matchWithFriend, useAppStore } from '@/state/appStore';
-import { Friend } from '@/types';
+import { UserProfile } from '@/types';
 
-function MatchRow({ friend }: { friend: Friend }) {
+function MatchRow({ friend }: { friend: UserProfile }) {
   const result = useAppStore(useShallow((state) => matchWithFriend(state, friend.id)));
 
   const subtitle =
@@ -34,10 +34,12 @@ function MatchRow({ friend }: { friend: Friend }) {
 }
 
 export default function MatchScreen() {
-  const friends = useAppStore((state) => state.friends);
+  const users = useAppStore((state) => state.users);
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const friends = Object.values(users).filter((user) => user.id !== activeUserId);
   const ranked = useAppStore(
     useShallow((state) =>
-      [...state.friends].sort((a, b) => {
+      [...friends].sort((a, b) => {
         const pa = matchWithFriend(state, a.id).percent ?? -1;
         const pb = matchWithFriend(state, b.id).percent ?? -1;
         return pb - pa;

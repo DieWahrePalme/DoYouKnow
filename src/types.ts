@@ -41,14 +41,14 @@ export type AnswerMap = Record<string, AnswerValue>;
 /** Full answer history for one group: questionId -> chronological list of entries (oldest first). */
 export type HistoryMap = Record<string, AnswerEntry[]>;
 
-export interface Profile {
+/** Anyone in the app: a switchable test identity or a friend/NPC. */
+export interface UserProfile {
+  id: string;
   name: string;
   avatarEmoji: string;
 }
 
-/** `me` is the special subject id representing the app's current user. */
-export const ME_ID = 'me';
-
+/** A user as shown in a list, with the streak between them and whoever is currently active. */
 export interface Friend {
   id: string;
   name: string;
@@ -59,6 +59,8 @@ export interface Friend {
 /** A shared-answer question you liked, to actually do together next time you meet. */
 export interface FavoriteItem {
   id: string;
+  /** Who liked it - the active user at the time, since favorites are per-person. */
+  ownerId: string;
   friendId: string;
   groupId: string;
   questionId: string;

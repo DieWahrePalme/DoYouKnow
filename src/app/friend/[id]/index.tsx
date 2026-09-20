@@ -7,15 +7,30 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
-import { getTodaysGroupIdFor, hasHourglassForGroup, latestAnswers, myGuessStatus, useAppStore } from '@/state/appStore';
-import { Friend, QuestionGroup } from '@/types';
+import {
+  getTodaysGroupIdFor,
+  hasHourglassForGroup,
+  latestAnswers,
+  myGuessStatus,
+  streakWith,
+  useAppStore,
+} from '@/state/appStore';
+import { QuestionGroup, UserProfile } from '@/types';
 
-function FriendGroupItem({ friend, group, isToday }: { friend: Friend; group: QuestionGroup; isToday: boolean }) {
+function FriendGroupItem({
+  friend,
+  group,
+  isToday,
+}: {
+  friend: UserProfile;
+  group: QuestionGroup;
+  isToday: boolean;
+}) {
   const status = useAppStore((state) => myGuessStatus(state, friend.id, group.id));
   const pending = useAppStore((state) => hasHourglassForGroup(state, friend.id, group.id));
   const score = useAppStore((state) => {
     const truth = latestAnswers(state.history[friend.id]?.[group.id]);
-    const guess = state.myGuesses[friend.id]?.[group.id];
+    const guess = state.guesses[state.activeUserId]?.[friend.id]?.[group.id];
     if (!truth || !guess) return null;
     return group.questions.filter((question) => guess[question.id] === truth[question.id]).length;
   });
@@ -50,7 +65,8 @@ function FriendGroupItem({ friend, group, isToday }: { friend: Friend; group: Qu
 
 export default function FriendGroupsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const friend = useAppStore((state) => state.friends.find((f) => f.id === id));
+  const friend = useAppStore((state) => state.users[id ?? '']);
+  const streak = useAppStore((state) => streakWith(state, id ?? ''));
   const groups = useAppStore((state) => state.groups);
   const now = useEffectiveNow();
   const todaysGroupId = id && now ? getTodaysGroupIdFor(id, groups, now) : undefined;
@@ -73,7 +89,7 @@ export default function FriendGroupsScreen() {
             <ThemedText style={styles.headerEmoji}>{friend.avatarEmoji}</ThemedText>
             <ThemedText type="subtitle">{friend.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              🔥 {friend.streak} Tage Streak
+              🔥 {streak} Tage Streak
             </ThemedText>
           </View>
 

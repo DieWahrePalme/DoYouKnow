@@ -10,6 +10,7 @@ interface AnswerButtonsProps {
 }
 
 const BUTTONS: { value: AnswerValue; label: string }[] = [
+  { value: 'never', label: 'Nie' },
   { value: 'no', label: '✕ Nein' },
   { value: 'leanNo', label: '↓ Eher nein' },
   { value: 'leanYes', label: '↑ Eher ja' },
@@ -20,37 +21,23 @@ export function AnswerButtons({ onAnswer }: AnswerButtonsProps) {
   const theme = useTheme();
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.row}>
-        {BUTTONS.map((button) => (
-          <Pressable
-            key={button.value}
-            onPress={() => onAnswer(button.value)}
-            style={({ pressed }) => [
-              styles.button,
-              { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
-            ]}>
-            <ThemedText type="smallBold">{button.label}</ThemedText>
-          </Pressable>
-        ))}
-      </View>
-      <Pressable
-        onPress={() => onAnswer('never')}
-        style={({ pressed }) => [
-          styles.neverButton,
-          { borderColor: pressed ? theme.text : theme.textSecondary },
-        ]}>
-        <ThemedText type="smallBold">⊘ Nie (klares Nein)</ThemedText>
-      </Pressable>
+    <View style={styles.row}>
+      {BUTTONS.map((button) => (
+        <Pressable
+          key={button.value}
+          onPress={() => onAnswer(button.value)}
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+          ]}>
+          <ThemedText type="smallBold">{button.label}</ThemedText>
+        </Pressable>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    gap: Spacing.two,
-    alignItems: 'center',
-  },
   row: {
     flexDirection: 'row',
     gap: Spacing.two,
@@ -61,11 +48,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.four,
-  },
-  neverButton: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.four,
-    borderWidth: 1,
   },
 });

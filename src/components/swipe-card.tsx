@@ -145,7 +145,7 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
             {question.text}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-            2× tippen für ein klares Nie
+            Nie (2× tippen)
           </ThemedText>
         </View>
       </Animated.View>

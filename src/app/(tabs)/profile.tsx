@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,8 +17,44 @@ import {
   totalGuessesCollected,
   useAppStore,
 } from '@/state/appStore';
-import { ME_ID, QuestionGroup } from '@/types';
+import { QuestionGroup } from '@/types';
 import { formatRelative } from '@/utils/formatRelative';
+
+function AccountSwitcher() {
+  const theme = useTheme();
+  const users = useAppStore((state) => state.users);
+  const testUserIds = useAppStore((state) => state.testUserIds);
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const switchActiveUser = useAppStore((state) => state.switchActiveUser);
+
+  return (
+    <View style={[styles.switcherWrap, { backgroundColor: theme.backgroundElement }]}>
+      <ThemedText type="small" themeColor="textSecondary">
+        Test: Account wechseln
+      </ThemedText>
+      <View style={styles.switcherRow}>
+        {testUserIds.map((id) => {
+          const user = users[id];
+          const active = id === activeUserId;
+          return (
+            <Pressable
+              key={id}
+              onPress={() => switchActiveUser(id)}
+              style={[
+                styles.switcherPill,
+                { backgroundColor: active ? theme.text : theme.background, borderColor: theme.textSecondary },
+              ]}>
+              <ThemedText style={styles.switcherEmoji}>{user.avatarEmoji}</ThemedText>
+              <ThemedText type="smallBold" style={{ color: active ? theme.background : theme.text }}>
+                {user.name}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 function StatColumn({ value, label }: { value: number; label: string }) {
   return (
@@ -35,12 +71,13 @@ function StatColumn({ value, label }: { value: number; label: string }) {
 
 function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean }) {
   const theme = useTheme();
-  const historyForGroup = useAppStore((state) => state.history[ME_ID]?.[group.id]);
+  const historyForGroup = useAppStore((state) => state.history[state.activeUserId]?.[group.id]);
   const now = useEffectiveNow();
   const waitingCount = useAppStore(
     (state) =>
-      state.friends.filter((friend) => theirGuessStatus(state, friend.id, group.id) === 'waiting_for_truth')
-        .length,
+      Object.keys(state.users).filter(
+        (userId) => userId !== state.activeUserId && theirGuessStatus(state, userId, group.id) === 'waiting_for_truth',
+      ).length,
   );
 
   const currentAnswers = latestAnswers(historyForGroup);
@@ -84,21 +121,29 @@ function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean 
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const profile = useAppStore((state) => state.profile);
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const profile = useAppStore((state) => state.users[state.activeUserId]);
   const groups = useAppStore((state) => state.groups);
-  const friendCount = useAppStore((state) => state.friends.length);
+  const friendCount = useAppStore((state) => Object.keys(state.users).length - 1);
   const answeredCount = useAppStore((state) => answeredGroupCount(state));
   const collectedCount = useAppStore((state) => totalGuessesCollected(state));
   const updateProfileName = useAppStore((state) => state.updateProfileName);
   const updateProfileAvatar = useAppStore((state) => state.updateProfileAvatar);
   const now = useEffectiveNow();
-  const todaysGroupId = now ? getTodaysGroupIdFor(ME_ID, groups, now) : groups[0].id;
+  const todaysGroupId = now ? getTodaysGroupIdFor(activeUserId, groups, now) : groups[0].id;
 
   const [isPickingAvatar, setIsPickingAvatar] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(profile.name);
   const nameInputRef = useRef<TextInput>(null);
   const hasCommittedRef = useRef(false);
+
+  // Switching test accounts should never leave an edit-in-progress pointed at the wrong person.
+  useEffect(() => {
+    setIsEditingName(false);
+    setIsPickingAvatar(false);
+    setNameDraft(profile.name);
+  }, [activeUserId, profile.name]);
 
   function startEditingName() {
     hasCommittedRef.current = false;
@@ -120,6 +165,8 @@ export default function ProfileScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
+          <AccountSwitcher />
+
           <View style={styles.headerRow}>
             <Pressable
               onPress={() => setIsPickingAvatar((v) => !v)}
@@ -199,6 +246,28 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.five,
+  },
+  switcherWrap: {
+    marginTop: Spacing.three,
+    borderRadius: Spacing.three,
+    padding: Spacing.two,
+    gap: Spacing.one,
+  },
+  switcherRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  switcherPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: Spacing.four,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
+  },
+  switcherEmoji: {
+    fontSize: 16,
   },
   headerRow: {
     flexDirection: 'row',

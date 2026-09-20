@@ -8,17 +8,18 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
-import { getTodaysGroupIdFor, hasHourglassForFriend, latestAnswers, useAppStore } from '@/state/appStore';
-import { Friend, ME_ID } from '@/types';
+import { getTodaysGroupIdFor, hasHourglassForFriend, latestAnswers, streakWith, useAppStore } from '@/state/appStore';
+import { UserProfile } from '@/types';
 
-function FriendListItem({ friend }: { friend: Friend }) {
+function FriendListItem({ friend }: { friend: UserProfile }) {
   const pending = useAppStore((state) => hasHourglassForFriend(state, friend.id));
+  const streak = useAppStore((state) => streakWith(state, friend.id));
 
   return (
     <FriendRow
       avatarEmoji={friend.avatarEmoji}
       name={friend.name}
-      streak={friend.streak}
+      streak={streak}
       pending={pending}
       onPress={() => router.push({ pathname: '/friend/[id]', params: { id: friend.id } })}
     />
@@ -26,15 +27,18 @@ function FriendListItem({ friend }: { friend: Friend }) {
 }
 
 function TodaysCard() {
-  const profile = useAppStore((state) => state.profile);
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const profile = useAppStore((state) => state.users[state.activeUserId]);
   const groups = useAppStore((state) => state.groups);
   // Falls back to a fixed group (same on server prerender and first client
   // paint) until mounted, then swaps to the real per-day pick - see
   // useEffectiveNow for why this can't just read Date.now() directly.
   const now = useEffectiveNow();
-  const todaysGroupId = now ? getTodaysGroupIdFor(ME_ID, groups, now) : groups[0].id;
+  const todaysGroupId = now ? getTodaysGroupIdFor(activeUserId, groups, now) : groups[0].id;
   const todaysGroup = groups.find((g) => g.id === todaysGroupId)!;
-  const answeredToday = useAppStore((state) => Boolean(latestAnswers(state.history[ME_ID]?.[todaysGroupId])));
+  const answeredToday = useAppStore((state) =>
+    Boolean(latestAnswers(state.history[activeUserId]?.[todaysGroupId])),
+  );
 
   return (
     <FriendRow
@@ -53,7 +57,9 @@ function TodaysCard() {
 }
 
 export default function HomeScreen() {
-  const friends = useAppStore((state) => state.friends);
+  const users = useAppStore((state) => state.users);
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const friends = Object.values(users).filter((user) => user.id !== activeUserId);
 
   return (
     <ThemedView style={styles.container}>

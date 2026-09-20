@@ -10,13 +10,14 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { latestAnswers, useAppStore } from '@/state/appStore';
-import { AnswerMap, ME_ID } from '@/types';
+import { AnswerMap } from '@/types';
 
 export default function MyGroupScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const theme = useTheme();
+  const activeUserId = useAppStore((state) => state.activeUserId);
   const group = useAppStore((state) => state.groups.find((g) => g.id === groupId));
-  const historyForGroup = useAppStore((state) => state.history[ME_ID]?.[groupId ?? '']);
+  const historyForGroup = useAppStore((state) => state.history[state.activeUserId]?.[groupId ?? '']);
   const submitSelfAnswers = useAppStore((state) => state.submitSelfAnswers);
   const [isUpdating, setIsUpdating] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
@@ -35,7 +36,7 @@ export default function MyGroupScreen() {
   const showSwipeDeck = !currentAnswers || isUpdating;
 
   function handleComplete(answers: AnswerMap) {
-    submitSelfAnswers(ME_ID, group!.id, answers);
+    submitSelfAnswers(activeUserId, group!.id, answers);
     setIsUpdating(false);
     setJustSubmitted(true);
   }

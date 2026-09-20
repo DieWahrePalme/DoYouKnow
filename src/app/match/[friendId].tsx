@@ -15,7 +15,8 @@ export default function MatchDetailScreen() {
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
   const theme = useTheme();
 
-  const friend = useAppStore((state) => state.friends.find((f) => f.id === friendId));
+  const friend = useAppStore((state) => state.users[friendId ?? '']);
+  const activeUserId = useAppStore((state) => state.activeUserId);
   const result = useAppStore(useShallow((state) => matchWithFriend(state, friendId ?? '')));
   // `sharedAnswers` returns freshly-built objects, so a plain selector would
   // never be reference-stable (infinite update loop) - recompute only when
@@ -64,7 +65,7 @@ export default function MatchDetailScreen() {
                 Ihr seid euch einig
               </ThemedText>
               {shared.map((item) => {
-                const favoriteId = `${friend.id}:${item.group.id}:${item.questionId}`;
+                const favoriteId = `${activeUserId}:${friend.id}:${item.group.id}:${item.questionId}`;
                 const isFavorite = favorites.some((f) => f.id === favoriteId);
                 const question = item.group.questions.find((q) => q.id === item.questionId)!;
                 return (
