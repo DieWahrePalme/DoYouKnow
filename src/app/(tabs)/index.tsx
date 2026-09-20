@@ -8,12 +8,33 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
-import { getTodaysGroupIdFor, hasHourglassForFriend, latestAnswers, streakWith, useAppStore } from '@/state/appStore';
+import {
+  getTodaysGroupIdFor,
+  hasHourglassForFriend,
+  latestAnswers,
+  myGuessStatus,
+  streakWith,
+  useAppStore,
+} from '@/state/appStore';
 import { UserProfile } from '@/types';
 
 function FriendListItem({ friend }: { friend: UserProfile }) {
   const pending = useAppStore((state) => hasHourglassForFriend(state, friend.id));
   const streak = useAppStore((state) => streakWith(state, friend.id));
+  const groups = useAppStore((state) => state.groups);
+  const now = useEffectiveNow();
+  const todaysGroupId = now ? getTodaysGroupIdFor(friend.id, groups, now) : groups[0].id;
+  const todaysGroup = groups.find((g) => g.id === todaysGroupId)!;
+  const status = useAppStore((state) => myGuessStatus(state, friend.id, todaysGroupId));
+
+  let statusText: string;
+  if (status === 'resolved') {
+    statusText = 'aufgelöst';
+  } else if (status === 'waiting_for_truth') {
+    statusText = `wartet auf ${friend.name}`;
+  } else {
+    statusText = 'jetzt raten';
+  }
 
   return (
     <FriendRow
@@ -21,7 +42,13 @@ function FriendListItem({ friend }: { friend: UserProfile }) {
       name={friend.name}
       streak={streak}
       pending={pending}
-      onPress={() => router.push({ pathname: '/friend/[id]', params: { id: friend.id } })}
+      subtitle={now ? `Heute: ${todaysGroup.icon} ${todaysGroup.name} · ${statusText}` : 'Lädt …'}
+      onPress={() =>
+        router.push({
+          pathname: '/friend/[id]/group/[groupId]',
+          params: { id: friend.id, groupId: todaysGroupId },
+        })
+      }
     />
   );
 }
