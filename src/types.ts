@@ -1,10 +1,10 @@
-export type AnswerValue = 'no' | 'leanNo' | 'leanYes' | 'yes';
+export type AnswerValue = 'never' | 'sometimes' | 'often' | 'always';
 
 export const ANSWER_LABELS: Record<AnswerValue, string> = {
-  no: 'Nein',
-  leanNo: 'Eher nein',
-  leanYes: 'Eher ja',
-  yes: 'Ja',
+  never: 'Nie',
+  sometimes: 'Manchmal',
+  often: 'Oft',
+  always: 'Immer',
 };
 
 export interface Question {
@@ -48,4 +48,13 @@ export interface Friend {
   name: string;
   avatarEmoji: string;
   streak: number;
+}
+
+/** A shared-answer question you liked, to actually do together next time you meet. */
+export interface FavoriteItem {
+  id: string;
+  friendId: string;
+  groupId: string;
+  questionId: string;
+  likedAt: string;
 }

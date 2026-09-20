@@ -3,17 +3,36 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ListRow } from '@/components/list-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { AVATAR_CHOICES } from '@/data/mockData';
 import { useTheme } from '@/hooks/use-theme';
-import { latestAnswers, theirGuessStatus, useAppStore } from '@/state/appStore';
+import {
+  answeredGroupCount,
+  latestAnswers,
+  theirGuessStatus,
+  totalGuessesCollected,
+  useAppStore,
+} from '@/state/appStore';
 import { ME_ID, QuestionGroup } from '@/types';
 import { formatRelative } from '@/utils/formatRelative';
 
-function GroupListItem({ group }: { group: QuestionGroup }) {
+function StatColumn({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={styles.statColumn}>
+      <ThemedText type="subtitle" style={styles.statValue}>
+        {value}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        {label}
+      </ThemedText>
+    </View>
+  );
+}
+
+function GroupTile({ group }: { group: QuestionGroup }) {
+  const theme = useTheme();
   const historyForGroup = useAppStore((state) => state.history[ME_ID]?.[group.id]);
   const waitingCount = useAppStore(
     (state) =>
@@ -22,27 +41,34 @@ function GroupListItem({ group }: { group: QuestionGroup }) {
   );
 
   const currentAnswers = latestAnswers(historyForGroup);
-  let subtitle: string;
+  let caption: string;
   if (!currentAnswers) {
-    subtitle = 'Noch nicht beantwortet';
+    caption = 'Offen';
   } else {
     const mostRecentAt = Object.values(historyForGroup!)
       .map((entries) => entries[entries.length - 1].at)
       .sort()
       .at(-1)!;
-    subtitle = `Zuletzt aktualisiert: ${formatRelative(mostRecentAt)}`;
-  }
-  if (waitingCount > 0) {
-    subtitle += ` · ${waitingCount} Freund${waitingCount === 1 ? '' : 'e'} warten`;
+    caption = formatRelative(mostRecentAt);
   }
 
   return (
-    <ListRow
-      icon={group.icon}
-      title={group.name}
-      subtitle={subtitle}
+    <Pressable
       onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: group.id } })}
-    />
+      style={[styles.tile, { backgroundColor: theme.backgroundElement }]}>
+      {waitingCount > 0 ? (
+        <View style={[styles.tileBadge, { backgroundColor: theme.text }]}>
+          <ThemedText style={[styles.tileBadgeText, { color: theme.background }]}>{waitingCount}</ThemedText>
+        </View>
+      ) : null}
+      <ThemedText style={styles.tileIcon}>{group.icon}</ThemedText>
+      <ThemedText type="smallBold" style={styles.tileName} numberOfLines={1}>
+        {group.name}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        {caption}
+      </ThemedText>
+    </Pressable>
   );
 }
 
@@ -50,6 +76,9 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const profile = useAppStore((state) => state.profile);
   const groups = useAppStore((state) => state.groups);
+  const friendCount = useAppStore((state) => state.friends.length);
+  const answeredCount = useAppStore((state) => answeredGroupCount(state));
+  const collectedCount = useAppStore((state) => totalGuessesCollected(state));
   const updateProfileName = useAppStore((state) => state.updateProfileName);
   const updateProfileAvatar = useAppStore((state) => state.updateProfileAvatar);
 
@@ -79,7 +108,7 @@ export default function ProfileScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-          <View style={styles.identity}>
+          <View style={styles.headerRow}>
             <Pressable
               onPress={() => setIsPickingAvatar((v) => !v)}
               style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
@@ -89,22 +118,28 @@ export default function ProfileScreen() {
               </View>
             </Pressable>
 
-            {isEditingName ? (
-              <TextInput
-                ref={nameInputRef}
-                autoFocus
-                value={nameDraft}
-                onChangeText={setNameDraft}
-                onSubmitEditing={() => nameInputRef.current?.blur()}
-                onBlur={commitName}
-                style={[styles.nameInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
-              />
-            ) : (
-              <Pressable onPress={startEditingName}>
-                <ThemedText type="subtitle">{profile.name} ✎</ThemedText>
-              </Pressable>
-            )}
+            <View style={styles.stats}>
+              <StatColumn value={friendCount} label="Freunde" />
+              <StatColumn value={answeredCount} label="Beantwortet" />
+              <StatColumn value={collectedCount} label="Gesammelt" />
+            </View>
           </View>
+
+          {isEditingName ? (
+            <TextInput
+              ref={nameInputRef}
+              autoFocus
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              onSubmitEditing={() => nameInputRef.current?.blur()}
+              onBlur={commitName}
+              style={[styles.nameInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+            />
+          ) : (
+            <Pressable onPress={startEditingName} style={styles.nameRow}>
+              <ThemedText type="subtitle">{profile.name} ✎</ThemedText>
+            </Pressable>
+          )}
 
           {isPickingAvatar ? (
             <View style={styles.avatarGrid}>
@@ -125,9 +160,9 @@ export default function ProfileScreen() {
           <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
             Deine Themen
           </ThemedText>
-          <View style={styles.groupList}>
+          <View style={styles.grid}>
             {groups.map((group) => (
-              <GroupListItem key={group.id} group={group} />
+              <GroupTile key={group.id} group={group} />
             ))}
           </View>
         </ScrollView>
@@ -152,68 +187,115 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.five,
-    gap: Spacing.one,
   },
-  identity: {
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.four,
     marginTop: Spacing.four,
-    marginBottom: Spacing.three,
   },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarEmoji: {
-    fontSize: 40,
+    fontSize: 38,
   },
   editBadge: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   editBadgeText: {
-    fontSize: 13,
+    fontSize: 12,
+  },
+  stats: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statColumn: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  statValue: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  nameRow: {
+    marginTop: Spacing.three,
   },
   nameInput: {
-    fontSize: 32,
-    lineHeight: 44,
+    marginTop: Spacing.three,
+    fontSize: 24,
+    lineHeight: 32,
     fontWeight: '600',
     borderBottomWidth: 2,
+    alignSelf: 'flex-start',
     minWidth: 160,
-    textAlign: 'center',
   },
   avatarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
     gap: Spacing.two,
-    marginBottom: Spacing.three,
+    marginTop: Spacing.three,
   },
   avatarChoice: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarChoiceEmoji: {
-    fontSize: 22,
+    fontSize: 20,
   },
   sectionLabel: {
-    marginTop: Spacing.three,
-    marginBottom: Spacing.one,
+    marginTop: Spacing.four,
+    marginBottom: Spacing.two,
     textTransform: 'uppercase',
   },
-  groupList: {
-    gap: Spacing.one,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  tile: {
+    width: '31%',
+    aspectRatio: 1,
+    borderRadius: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    padding: Spacing.one,
+  },
+  tileBadge: {
+    position: 'absolute',
+    top: Spacing.one,
+    right: Spacing.one,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  tileBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  tileIcon: {
+    fontSize: 26,
+  },
+  tileName: {
+    textAlign: 'center',
   },
 });

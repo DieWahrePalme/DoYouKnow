@@ -1,14 +1,13 @@
 import { router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FriendRow } from '@/components/friend-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { hasHourglassForFriend, useAppStore, waitingForMeCount } from '@/state/appStore';
-import { Friend } from '@/types';
+import { getTodaysGroupId, hasHourglassForFriend, latestAnswers, useAppStore } from '@/state/appStore';
+import { Friend, ME_ID } from '@/types';
 
 function FriendListItem({ friend }: { friend: Friend }) {
   const pending = useAppStore((state) => hasHourglassForFriend(state, friend.id));
@@ -24,16 +23,27 @@ function FriendListItem({ friend }: { friend: Friend }) {
   );
 }
 
-export default function HomeScreen() {
-  const theme = useTheme();
+function TodaysCard() {
   const profile = useAppStore((state) => state.profile);
-  const friends = useAppStore((state) => state.friends);
-  const waitingCount = useAppStore((state) => waitingForMeCount(state));
+  const groups = useAppStore((state) => state.groups);
+  const todaysGroupId = getTodaysGroupId(groups);
+  const todaysGroup = groups.find((g) => g.id === todaysGroupId)!;
+  const answeredToday = useAppStore((state) => Boolean(latestAnswers(state.history[ME_ID]?.[todaysGroupId])));
 
-  const meSubtitle =
-    waitingCount > 0
-      ? `${waitingCount} Antwort${waitingCount === 1 ? '' : 'en'} steh${waitingCount === 1 ? 't' : 'en'} aus`
-      : 'Alles aktuell';
+  return (
+    <FriendRow
+      avatarEmoji={profile.avatarEmoji}
+      name={profile.name}
+      streak={0}
+      hideStreak
+      subtitle={`Heute: ${todaysGroup.icon} ${todaysGroup.name} · ${answeredToday ? 'schon aktualisiert' : 'jetzt beantworten'}`}
+      onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: todaysGroupId } })}
+    />
+  );
+}
+
+export default function HomeScreen() {
+  const friends = useAppStore((state) => state.friends);
 
   return (
     <ThemedView style={styles.container}>
@@ -46,26 +56,11 @@ export default function HomeScreen() {
           ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
           ListHeaderComponent={
             <>
-              <View style={styles.headerRow}>
-                <Pressable
-                  onPress={() => router.push('/profile')}
-                  style={[styles.profileButton, { backgroundColor: theme.backgroundSelected }]}>
-                  <ThemedText style={styles.profileEmoji}>{profile.avatarEmoji}</ThemedText>
-                </Pressable>
-                <ThemedText type="title" style={styles.heading}>
-                  Do You Know?
-                </ThemedText>
-              </View>
+              <ThemedText type="title" style={styles.heading}>
+                Do You Know?
+              </ThemedText>
 
-              <FriendRow
-                avatarEmoji={profile.avatarEmoji}
-                name={profile.name}
-                streak={0}
-                hideStreak
-                pending={waitingCount > 0}
-                subtitle={meSubtitle}
-                onPress={() => router.push('/profile')}
-              />
+              <TodaysCard />
 
               <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
                 Freunde
@@ -97,26 +92,11 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.five,
     gap: Spacing.one,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
-  },
-  profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileEmoji: {
-    fontSize: 20,
-  },
   heading: {
     fontSize: 32,
     lineHeight: 40,
+    marginTop: Spacing.four,
+    marginBottom: Spacing.two,
   },
   sectionLabel: {
     marginTop: Spacing.four,

@@ -7,7 +7,7 @@ import {
   INITIAL_HISTORY,
   QUESTION_GROUPS,
 } from '@/data/mockData';
-import { AnswerMap, Friend, HistoryMap, ME_ID, Profile, QuestionGroup } from '@/types';
+import { AnswerMap, FavoriteItem, Friend, HistoryMap, ME_ID, Profile, QuestionGroup } from '@/types';
 
 export type ResolutionStatus = 'not_guessed' | 'waiting_for_truth' | 'resolved';
 
@@ -22,10 +22,12 @@ interface AppState {
   /** friendId -> groupId -> that friend's guess about me. */
   guessesAboutMe: Record<string, Record<string, AnswerMap>>;
   streakBumpedToday: Record<string, boolean>;
+  favorites: FavoriteItem[];
   updateProfileName: (name: string) => void;
   updateProfileAvatar: (avatarEmoji: string) => void;
   submitSelfAnswers: (subjectId: string, groupId: string, answers: AnswerMap) => void;
   submitGuess: (friendId: string, groupId: string, answers: AnswerMap) => void;
+  toggleFavorite: (friendId: string, groupId: string, questionId: string) => void;
 }
 
 /** The current value per question, or undefined if this group was never completed. */
@@ -73,6 +75,7 @@ export const useAppStore = create<AppState>((set, get) => {
     myGuesses: {},
     guessesAboutMe: INITIAL_GUESSES_ABOUT_ME,
     streakBumpedToday: {},
+    favorites: [],
 
     updateProfileName: (name) => set((state) => ({ profile: { ...state.profile, name } })),
     updateProfileAvatar: (avatarEmoji) => set((state) => ({ profile: { ...state.profile, avatarEmoji } })),
@@ -112,6 +115,18 @@ export const useAppStore = create<AppState>((set, get) => {
       }));
       bumpStreakIfResolved(friendId);
     },
+
+    toggleFavorite: (friendId, groupId, questionId) => {
+      const id = `${friendId}:${groupId}:${questionId}`;
+      set((state) => {
+        const exists = state.favorites.some((f) => f.id === id);
+        return {
+          favorites: exists
+            ? state.favorites.filter((f) => f.id !== id)
+            : [...state.favorites, { id, friendId, groupId, questionId, likedAt: new Date().toISOString() }],
+        };
+      });
+    },
   };
 });
 
@@ -147,4 +162,59 @@ export function waitingForMeCount(state: AppState): number {
     }
   }
   return count;
+}
+
+/** Deterministic daily pick among the groups - same for everyone on a given day, changes overnight. */
+export function getTodaysGroupId(groups: QuestionGroup[]): string {
+  const startOfYear = new Date(new Date().getFullYear(), 0, 0).getTime();
+  const dayOfYear = Math.floor((Date.now() - startOfYear) / 86_400_000);
+  return groups[dayOfYear % groups.length].id;
+}
+
+export interface MatchResult {
+  matches: number;
+  total: number;
+  percent: number | null;
+}
+
+/** % of directly-comparable questions where my latest answer equals the friend's, across all groups. */
+export function matchWithFriend(state: AppState, friendId: string): MatchResult {
+  let matches = 0;
+  let total = 0;
+  for (const group of state.groups) {
+    const mine = latestAnswers(state.history[ME_ID]?.[group.id]);
+    const theirs = latestAnswers(state.history[friendId]?.[group.id]);
+    if (!mine || !theirs) continue;
+    for (const question of group.questions) {
+      total += 1;
+      if (mine[question.id] === theirs[question.id]) matches += 1;
+    }
+  }
+  return { matches, total, percent: total > 0 ? Math.round((matches / total) * 100) : null };
+}
+
+/** Every question where my latest answer and the friend's latest answer agree. */
+export function sharedAnswers(state: AppState, friendId: string) {
+  const shared: { group: QuestionGroup; questionId: string; value: AnswerMap[string] }[] = [];
+  for (const group of state.groups) {
+    const mine = latestAnswers(state.history[ME_ID]?.[group.id]);
+    const theirs = latestAnswers(state.history[friendId]?.[group.id]);
+    if (!mine || !theirs) continue;
+    for (const question of group.questions) {
+      if (mine[question.id] !== undefined && mine[question.id] === theirs[question.id]) {
+        shared.push({ group, questionId: question.id, value: mine[question.id] });
+      }
+    }
+  }
+  return shared;
+}
+
+/** How many of my own groups I've completed at least once. */
+export function answeredGroupCount(state: AppState): number {
+  return state.groups.filter((group) => Boolean(latestAnswers(state.history[ME_ID]?.[group.id]))).length;
+}
+
+/** Total guesses friends have made about me, across all groups (resolved or still pending). */
+export function totalGuessesCollected(state: AppState): number {
+  return Object.values(state.guessesAboutMe).reduce((sum, byGroup) => sum + Object.keys(byGroup).length, 0);
 }

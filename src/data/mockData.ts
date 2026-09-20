@@ -126,14 +126,22 @@ const sportIds = QUESTION_GROUPS.find((g) => g.id === 'sport')!.questions.map((q
 export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {
   me: {
     // Demonstrates exactly the "changed my mind over the year" use case:
-    // question 3 ("lieber campen") went no -> eher ja -> (answer again to see it become "ja").
+    // question 3 ("lieber campen") went nie -> oft -> (answer again to see it become "immer").
     urlaub: mergeRounds(
-      round(urlaubIds, ['no', 'no', 'no', 'yes', 'leanYes'], monthsAgo(12)),
-      round(urlaubIds, ['leanNo', 'no', 'leanYes', 'yes', 'yes'], monthsAgo(3)),
+      round(urlaubIds, ['never', 'never', 'never', 'always', 'often'], monthsAgo(12)),
+      round(urlaubIds, ['sometimes', 'never', 'often', 'always', 'always'], monthsAgo(3)),
     ),
   },
   tom: {
-    sport: round(sportIds, ['yes', 'leanYes', 'no', 'leanNo', 'yes'], daysAgo(2)),
+    sport: round(sportIds, ['always', 'often', 'never', 'sometimes', 'always'], daysAgo(2)),
+  },
+  lena: {
+    // High overlap with "me" on Urlaub - shows up as a strong Match.
+    urlaub: round(urlaubIds, ['sometimes', 'never', 'often', 'always', 'sometimes'], daysAgo(5)),
+  },
+  mia: {
+    // Mostly different from "me" on Urlaub - shows up as a weak Match.
+    urlaub: round(urlaubIds, ['always', 'always', 'never', 'never', 'never'], daysAgo(10)),
   },
 };
 
@@ -141,11 +149,11 @@ export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {
 export const INITIAL_GUESSES_ABOUT_ME: Record<string, Record<string, AnswerMap>> = {
   lena: {
     freizeit: {
-      'freizeit-q1': 'leanYes',
-      'freizeit-q2': 'yes',
-      'freizeit-q3': 'no',
-      'freizeit-q4': 'leanNo',
-      'freizeit-q5': 'yes',
+      'freizeit-q1': 'often',
+      'freizeit-q2': 'always',
+      'freizeit-q3': 'never',
+      'freizeit-q4': 'sometimes',
+      'freizeit-q5': 'always',
     },
   },
 };

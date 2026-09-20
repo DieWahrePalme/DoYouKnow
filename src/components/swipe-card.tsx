@@ -48,11 +48,11 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
       const absY = Math.abs(dy);
 
       if (absX > absY && absX > SWIPE_THRESHOLD) {
-        finish(dx > 0 ? 'yes' : 'no', dx > 0 ? EXIT_DISTANCE : -EXIT_DISTANCE, dy);
+        finish(dx > 0 ? 'always' : 'never', dx > 0 ? EXIT_DISTANCE : -EXIT_DISTANCE, dy);
         return;
       }
       if (absY >= absX && absY > SWIPE_THRESHOLD) {
-        finish(dy < 0 ? 'leanYes' : 'leanNo', dx, dy < 0 ? -EXIT_DISTANCE : EXIT_DISTANCE);
+        finish(dy < 0 ? 'often' : 'sometimes', dx, dy < 0 ? -EXIT_DISTANCE : EXIT_DISTANCE);
         return;
       }
       translateX.value = withSpring(0);
@@ -67,40 +67,40 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
     ],
   }));
 
-  const yesStampStyle = useAnimatedStyle(() => ({
+  const alwaysStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
   }));
-  const noStampStyle = useAnimatedStyle(() => ({
+  const neverStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp'),
   }));
-  const leanYesStampStyle = useAnimatedStyle(() => ({
+  const oftenStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateY.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp'),
   }));
-  const leanNoStampStyle = useAnimatedStyle(() => ({
+  const sometimesStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateY.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
   }));
 
   return (
     <GestureDetector gesture={pan}>
       <Animated.View style={[styles.card, { backgroundColor: theme.backgroundElement }, cardStyle]}>
-        <Animated.View style={[styles.stamp, styles.stampRight, yesStampStyle]}>
-          <ThemedText type="title" style={styles.stampTextYes}>
-            JA
+        <Animated.View style={[styles.stamp, styles.stampRight, alwaysStampStyle]}>
+          <ThemedText type="title" style={styles.stampTextAlways}>
+            IMMER
           </ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampLeft, noStampStyle]}>
-          <ThemedText type="title" style={styles.stampTextNo}>
-            NEIN
+        <Animated.View style={[styles.stamp, styles.stampLeft, neverStampStyle]}>
+          <ThemedText type="title" style={styles.stampTextNever}>
+            NIE
           </ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampTop, leanYesStampStyle]}>
-          <ThemedText type="subtitle" style={styles.stampTextLeanYes}>
-            EHER JA
+        <Animated.View style={[styles.stamp, styles.stampTop, oftenStampStyle]}>
+          <ThemedText type="subtitle" style={styles.stampTextOften}>
+            OFT
           </ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampBottom, leanNoStampStyle]}>
-          <ThemedText type="subtitle" style={styles.stampTextLeanNo}>
-            EHER NEIN
+        <Animated.View style={[styles.stamp, styles.stampBottom, sometimesStampStyle]}>
+          <ThemedText type="subtitle" style={styles.stampTextSometimes}>
+            MANCHMAL
           </ThemedText>
         </Animated.View>
 
@@ -165,16 +165,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderColor: '#FF3B30',
   },
-  stampTextYes: {
+  stampTextAlways: {
     color: '#34C759',
   },
-  stampTextNo: {
+  stampTextNever: {
     color: '#FF3B30',
   },
-  stampTextLeanYes: {
+  stampTextOften: {
     color: '#34C759',
   },
-  stampTextLeanNo: {
+  stampTextSometimes: {
     color: '#FF3B30',
   },
 });

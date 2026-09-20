@@ -10,10 +10,10 @@ interface AnswerButtonsProps {
 }
 
 const BUTTONS: { value: AnswerValue; label: string }[] = [
-  { value: 'no', label: '✕ Nein' },
-  { value: 'leanNo', label: '↓ Eher nein' },
-  { value: 'leanYes', label: '↑ Eher ja' },
-  { value: 'yes', label: '✓ Ja' },
+  { value: 'never', label: '✕ Nie' },
+  { value: 'sometimes', label: '↓ Manchmal' },
+  { value: 'often', label: '↑ Oft' },
+  { value: 'always', label: '✓ Immer' },
 ];
 
 export function AnswerButtons({ onAnswer }: AnswerButtonsProps) {

@@ -19,7 +19,7 @@ export default function RootLayout() {
             headerShadowVisible: false,
             contentStyle: { backgroundColor: theme.background },
           }}>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>
