@@ -65,11 +65,16 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
       translateY.value = withSpring(0);
     });
 
-  // A hard "Nie" is a deliberate double-tap on the card, not a swipe -
-  // Exclusive lets the tap gesture claim the touch before Pan treats it as a drag.
+  // A hard "Nie" is a deliberate double-tap on the card, not a swipe. Race
+  // (not Exclusive) is what keeps swiping instant: Exclusive made every
+  // touch wait out the double-tap timeout before a drag was even allowed to
+  // start, which is exactly the lag/"hängt" the double-tap change caused.
+  // With Race, Pan simply wins the moment real movement happens, while a
+  // still finger gives the tap gesture room to recognize two quick taps.
   const doubleTap = Gesture.Tap()
     .enabled(active)
     .numberOfTaps(2)
+    .maxDistance(15)
     .onStart(() => {
       neverPulse.value = withSequence(
         withTiming(1, { duration: 120 }),
@@ -79,7 +84,7 @@ export function SwipeCard({ question, onAnswer, active }: SwipeCardProps) {
       );
     });
 
-  const gesture = Gesture.Exclusive(doubleTap, pan);
+  const gesture = Gesture.Race(pan, doubleTap);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [
