@@ -1,6 +1,11 @@
 -- Do You Know - database schema for Supabase.
 -- Run this once in the Supabase dashboard: SQL Editor -> New query -> paste -> Run.
 -- Safe to re-run: every statement is guarded with IF NOT EXISTS / OR REPLACE.
+--
+-- RLS policies wrap auth.uid() as (select auth.uid()): Postgres then evaluates
+-- it once per statement (as an initPlan) instead of once per row, which matters
+-- once these tables have more than a handful of rows. See:
+-- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
 
 -- ---------------------------------------------------------------------------
 -- profiles: one row per registered person, mirrors auth.users
@@ -20,7 +25,7 @@ create policy "profiles are readable by anyone signed in" on public.profiles
 
 drop policy if exists "users can update their own profile" on public.profiles;
 create policy "users can update their own profile" on public.profiles
-  for update to authenticated using (auth.uid() = id);
+  for update to authenticated using ((select auth.uid()) = id);
 
 -- Auto-create a profile row whenever someone signs up. The username is
 -- taken from the signup form (passed as user metadata) and falls back to a
@@ -63,19 +68,19 @@ alter table public.friendships enable row level security;
 
 drop policy if exists "see your own friendships" on public.friendships;
 create policy "see your own friendships" on public.friendships
-  for select to authenticated using (auth.uid() = user_id or auth.uid() = friend_id);
+  for select to authenticated using ((select auth.uid()) = user_id or (select auth.uid()) = friend_id);
 
 drop policy if exists "send a friend request" on public.friendships;
 create policy "send a friend request" on public.friendships
-  for insert to authenticated with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 
 drop policy if exists "recipient can accept or either side can remove" on public.friendships;
 create policy "recipient can accept or either side can remove" on public.friendships
-  for update to authenticated using (auth.uid() = user_id or auth.uid() = friend_id);
+  for update to authenticated using ((select auth.uid()) = user_id or (select auth.uid()) = friend_id);
 
 drop policy if exists "either side can delete the friendship" on public.friendships;
 create policy "either side can delete the friendship" on public.friendships
-  for delete to authenticated using (auth.uid() = user_id or auth.uid() = friend_id);
+  for delete to authenticated using ((select auth.uid()) = user_id or (select auth.uid()) = friend_id);
 
 -- ---------------------------------------------------------------------------
 -- answers: append-only history of every round someone has answered for a
@@ -100,7 +105,7 @@ create policy "answers are readable by anyone signed in" on public.answers
 
 drop policy if exists "insert only your own answers" on public.answers;
 create policy "insert only your own answers" on public.answers
-  for insert to authenticated with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 
 -- ---------------------------------------------------------------------------
 -- guesses: what one person guessed another person's latest answer to be.
@@ -121,15 +126,15 @@ alter table public.guesses enable row level security;
 
 drop policy if exists "see guesses you made or that are about you" on public.guesses;
 create policy "see guesses you made or that are about you" on public.guesses
-  for select to authenticated using (auth.uid() = guesser_id or auth.uid() = subject_id);
+  for select to authenticated using ((select auth.uid()) = guesser_id or (select auth.uid()) = subject_id);
 
 drop policy if exists "only guess as yourself" on public.guesses;
 create policy "only guess as yourself" on public.guesses
-  for insert to authenticated with check (auth.uid() = guesser_id);
+  for insert to authenticated with check ((select auth.uid()) = guesser_id);
 
 drop policy if exists "only update your own guesses" on public.guesses;
 create policy "only update your own guesses" on public.guesses
-  for update to authenticated using (auth.uid() = guesser_id);
+  for update to authenticated using ((select auth.uid()) = guesser_id);
 
 -- ---------------------------------------------------------------------------
 -- streaks: one row per pair, canonicalized so user_a < user_b (avoids
@@ -148,15 +153,15 @@ alter table public.streaks enable row level security;
 
 drop policy if exists "see your own streaks" on public.streaks;
 create policy "see your own streaks" on public.streaks
-  for select to authenticated using (auth.uid() = user_a or auth.uid() = user_b);
+  for select to authenticated using ((select auth.uid()) = user_a or (select auth.uid()) = user_b);
 
 drop policy if exists "upsert a streak you're part of" on public.streaks;
 create policy "upsert a streak you're part of" on public.streaks
-  for insert to authenticated with check (auth.uid() = user_a or auth.uid() = user_b);
+  for insert to authenticated with check ((select auth.uid()) = user_a or (select auth.uid()) = user_b);
 
 drop policy if exists "update a streak you're part of" on public.streaks;
 create policy "update a streak you're part of" on public.streaks
-  for update to authenticated using (auth.uid() = user_a or auth.uid() = user_b);
+  for update to authenticated using ((select auth.uid()) = user_a or (select auth.uid()) = user_b);
 
 -- ---------------------------------------------------------------------------
 -- favorites: shared answers a person liked, private to them.
@@ -175,4 +180,4 @@ alter table public.favorites enable row level security;
 
 drop policy if exists "manage only your own favorites" on public.favorites;
 create policy "manage only your own favorites" on public.favorites
-  for all to authenticated using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+  for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
