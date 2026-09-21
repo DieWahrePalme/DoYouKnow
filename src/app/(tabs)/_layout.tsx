@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
+import { useFriendsStore } from '@/state/friendsStore';
 
 interface TabDef {
   href: Href;
@@ -37,6 +38,7 @@ export default function TabsLayout() {
   useEffect(() => {
     if (authProfile) {
       syncRealUser({ id: authProfile.id, name: authProfile.username, avatarEmoji: authProfile.avatarEmoji });
+      useFriendsStore.getState().fetchAll();
     }
   }, [authProfile, syncRealUser]);
 

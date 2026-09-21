@@ -40,6 +40,8 @@ interface AppState {
   checkDayRollover: () => void;
   /** Makes the real signed-in account "you" in the app - called once after login/signup. */
   syncRealUser: (profile: UserProfile) => void;
+  /** Adds a real accepted friend's profile to the roster so every screen that reads `users` picks them up. */
+  mergeRealFriend: (profile: UserProfile) => void;
 }
 
 function dayKey(date: Date): string {
@@ -228,6 +230,10 @@ export const useAppStore = create<AppState>((set, get) => {
         users: { ...state.users, [profile.id]: profile },
         activeUserId: profile.id,
       }));
+    },
+
+    mergeRealFriend: (profile) => {
+      set((state) => ({ users: { ...state.users, [profile.id]: profile } }));
     },
   };
 });

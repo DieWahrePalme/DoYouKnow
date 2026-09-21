@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { FlatList, StyleSheet } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CountdownTimer } from '@/components/countdown-timer';
@@ -16,7 +16,39 @@ import {
   streakWith,
   useAppStore,
 } from '@/state/appStore';
+import { useFriendsStore } from '@/state/friendsStore';
+import { useTheme } from '@/hooks/use-theme';
 import { UserProfile } from '@/types';
+
+function TopBar() {
+  const theme = useTheme();
+  const requestCount = useFriendsStore((state) => state.incomingRequests.length);
+
+  return (
+    <View style={styles.topBar}>
+      <Pressable
+        onPress={() => router.push('/add-friend')}
+        hitSlop={12}
+        style={[styles.topBarButton, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText style={styles.topBarIcon}>＋</ThemedText>
+      </Pressable>
+      <View style={styles.topBarSpacer} />
+      <Pressable
+        onPress={() => router.push('/friend-requests')}
+        hitSlop={12}
+        style={[styles.topBarButton, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText style={styles.topBarIcon}>📥</ThemedText>
+        {requestCount > 0 ? (
+          <View style={[styles.badge, { backgroundColor: theme.danger }]}>
+            <ThemedText type="small" style={styles.badgeText}>
+              {requestCount}
+            </ThemedText>
+          </View>
+        ) : null}
+      </Pressable>
+    </View>
+  );
+}
 
 function FriendListItem({ friend }: { friend: UserProfile }) {
   const pending = useAppStore((state) => hasHourglassForFriend(state, friend.id));
@@ -99,6 +131,7 @@ export default function HomeScreen() {
           ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
           ListHeaderComponent={
             <>
+              <TopBar />
               <CountdownTimer />
 
               <ThemedText type="title" style={styles.heading}>
@@ -126,6 +159,40 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     alignItems: 'center',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.three,
+  },
+  topBarSpacer: {
+    flex: 1,
+  },
+  topBarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarIcon: {
+    fontSize: 18,
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    lineHeight: 12,
   },
   list: {
     flex: 1,
