@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
@@ -26,6 +27,9 @@ export default function TabsLayout() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const pathname = usePathname();
   const authProfile = useAuthStore((state) => state.profile);
+  const profileError = useAuthStore((state) => state.profileError);
+  const retryProfileLoad = useAuthStore((state) => state.retryProfileLoad);
+  const signOut = useAuthStore((state) => state.signOut);
   const activeUserId = useAppStore((state) => state.activeUserId);
   const syncRealUser = useAppStore((state) => state.syncRealUser);
   const avatarEmoji = useAppStore((state) => state.users[state.activeUserId]?.avatarEmoji);
@@ -35,6 +39,29 @@ export default function TabsLayout() {
       syncRealUser({ id: authProfile.id, name: authProfile.username, avatarEmoji: authProfile.avatarEmoji });
     }
   }, [authProfile, syncRealUser]);
+
+  if (profileError) {
+    return (
+      <View style={[styles.container, styles.centered, styles.errorPadding, { backgroundColor: theme.background }]}>
+        <ThemedText type="subtitle" style={styles.centerText}>
+          Profil nicht gefunden
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
+          {profileError}
+        </ThemedText>
+        <Pressable onPress={() => retryProfileLoad()} style={[styles.retryButton, { backgroundColor: theme.primary }]}>
+          <ThemedText type="smallBold" style={styles.retryButtonText}>
+            Erneut versuchen
+          </ThemedText>
+        </Pressable>
+        <Pressable onPress={() => signOut()}>
+          <ThemedText type="small" style={{ color: theme.danger }}>
+            Abmelden
+          </ThemedText>
+        </Pressable>
+      </View>
+    );
+  }
 
   if (!activeUserId) {
     return (
@@ -75,6 +102,21 @@ const styles = StyleSheet.create({
   centered: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorPadding: {
+    paddingHorizontal: Spacing.five,
+    gap: Spacing.three,
+  },
+  centerText: {
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Spacing.four,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,

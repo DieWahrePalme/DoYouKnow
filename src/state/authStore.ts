@@ -15,19 +15,29 @@ interface AuthState {
   status: AuthStatus;
   session: Session | null;
   profile: AuthProfile | null;
+  /** Set when signed in but the profile row couldn't be loaded - almost always means supabase/schema.sql hasn't been run yet. */
+  profileError: string | null;
   error: string | null;
   init: () => void;
   signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  retryProfileLoad: () => Promise<void>;
   clearError: () => void;
 }
 
-async function loadProfile(userId: string): Promise<AuthProfile | null> {
+async function loadProfile(userId: string): Promise<{ profile: AuthProfile | null; error: string | null }> {
   const { data, error } = await supabase.from('profiles').select('id, username, avatar_emoji').eq('id', userId).single();
-  if (error || !data) return null;
-  return { id: data.id, username: data.username, avatarEmoji: data.avatar_emoji };
+  if (error || !data) {
+    return {
+      profile: null,
+      error:
+        `Profil konnte nicht geladen werden (${error?.message ?? 'kein Eintrag'}). ` +
+        'Wurde supabase/schema.sql schon im SQL-Editor des Supabase-Projekts ausgeführt?',
+    };
+  }
+  return { profile: { id: data.id, username: data.username, avatarEmoji: data.avatar_emoji }, error: null };
 }
 
 /** Friendly German text for the handful of Supabase auth errors a signup/login form actually hits. */
@@ -49,10 +59,11 @@ function friendlyAuthError(message: string): string {
 
 const NOT_CONFIGURED_ERROR = 'Backend ist noch nicht verbunden - trag EXPO_PUBLIC_SUPABASE_URL/ANON_KEY in .env ein.';
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
   session: null,
   profile: null,
+  profileError: null,
   error: null,
 
   init: () => {
@@ -62,8 +73,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
-        const profile = await loadProfile(data.session.user.id);
-        set({ session: data.session, profile, status: 'signedIn' });
+        const { profile, error } = await loadProfile(data.session.user.id);
+        set({ session: data.session, profile, profileError: error, status: 'signedIn' });
       } else {
         set({ status: 'signedOut' });
       }
@@ -71,12 +82,19 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        const profile = await loadProfile(session.user.id);
-        set({ session, profile, status: 'signedIn' });
+        const { profile, error } = await loadProfile(session.user.id);
+        set({ session, profile, profileError: error, status: 'signedIn' });
       } else {
-        set({ session: null, profile: null, status: 'signedOut' });
+        set({ session: null, profile: null, profileError: null, status: 'signedOut' });
       }
     });
+  },
+
+  retryProfileLoad: async () => {
+    const userId = get().session?.user.id;
+    if (!userId) return;
+    const { profile, error } = await loadProfile(userId);
+    set({ profile, profileError: error });
   },
 
   signUp: async (email, password, username) => {
