@@ -17,41 +17,27 @@ import {
   totalGuessesCollected,
   useAppStore,
 } from '@/state/appStore';
+import { useAuthStore } from '@/state/authStore';
 import { QuestionGroup } from '@/types';
 import { formatRelative } from '@/utils/formatRelative';
 
-function AccountSwitcher() {
+function AccountSection() {
   const theme = useTheme();
-  const users = useAppStore((state) => state.users);
-  const testUserIds = useAppStore((state) => state.testUserIds);
-  const activeUserId = useAppStore((state) => state.activeUserId);
-  const switchActiveUser = useAppStore((state) => state.switchActiveUser);
+  const email = useAuthStore((state) => state.session?.user.email);
+  const signOut = useAuthStore((state) => state.signOut);
 
   return (
-    <View style={[styles.switcherWrap, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText type="small" themeColor="textSecondary">
-        Test: Account wechseln
-      </ThemedText>
-      <View style={styles.switcherRow}>
-        {testUserIds.map((id) => {
-          const user = users[id];
-          const active = id === activeUserId;
-          return (
-            <Pressable
-              key={id}
-              onPress={() => switchActiveUser(id)}
-              style={[
-                styles.switcherPill,
-                { backgroundColor: active ? theme.text : theme.background, borderColor: theme.textSecondary },
-              ]}>
-              <ThemedText style={styles.switcherEmoji}>{user.avatarEmoji}</ThemedText>
-              <ThemedText type="smallBold" style={{ color: active ? theme.background : theme.text }}>
-                {user.name}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-      </View>
+    <View style={[styles.accountWrap, { backgroundColor: theme.backgroundElement }]}>
+      {email ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          {email}
+        </ThemedText>
+      ) : null}
+      <Pressable onPress={() => signOut()} style={styles.signOutButton}>
+        <ThemedText type="smallBold" style={{ color: theme.danger }}>
+          Abmelden
+        </ThemedText>
+      </Pressable>
     </View>
   );
 }
@@ -138,7 +124,6 @@ export default function ProfileScreen() {
   const nameInputRef = useRef<TextInput>(null);
   const hasCommittedRef = useRef(false);
 
-  // Switching test accounts should never leave an edit-in-progress pointed at the wrong person.
   useEffect(() => {
     setIsEditingName(false);
     setIsPickingAvatar(false);
@@ -165,7 +150,7 @@ export default function ProfileScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-          <AccountSwitcher />
+          <AccountSection />
 
           <View style={styles.headerRow}>
             <Pressable
@@ -247,27 +232,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.five,
   },
-  switcherWrap: {
+  accountWrap: {
     marginTop: Spacing.three,
     borderRadius: Spacing.three,
-    padding: Spacing.two,
-    gap: Spacing.one,
-  },
-  switcherRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  switcherPill: {
+    padding: Spacing.three,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderRadius: Spacing.four,
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
+    justifyContent: 'space-between',
   },
-  switcherEmoji: {
-    fontSize: 16,
+  signOutButton: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
   },
   headerRow: {
     flexDirection: 'row',

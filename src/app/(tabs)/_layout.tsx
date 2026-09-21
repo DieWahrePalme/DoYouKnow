@@ -1,9 +1,11 @@
 import { Href, Slot, router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
+import { useAuthStore } from '@/state/authStore';
 
 interface TabDef {
   href: Href;
@@ -23,7 +25,24 @@ export default function TabsLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const pathname = usePathname();
-  const avatarEmoji = useAppStore((state) => state.users[state.activeUserId].avatarEmoji);
+  const authProfile = useAuthStore((state) => state.profile);
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const syncRealUser = useAppStore((state) => state.syncRealUser);
+  const avatarEmoji = useAppStore((state) => state.users[state.activeUserId]?.avatarEmoji);
+
+  useEffect(() => {
+    if (authProfile) {
+      syncRealUser({ id: authProfile.id, name: authProfile.username, avatarEmoji: authProfile.avatarEmoji });
+    }
+  }, [authProfile, syncRealUser]);
+
+  if (!activeUserId) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator color={theme.primary} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -52,6 +71,10 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,

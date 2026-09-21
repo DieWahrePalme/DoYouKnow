@@ -1,12 +1,28 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Colors } from '@/constants/theme';
+import { useAuthStore } from '@/state/authStore';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const status = useAuthStore((state) => state.status);
+  const init = useAuthStore((state) => state.init);
+
+  useEffect(() => {
+    init();
+  }, [init]);
+
+  if (status === 'loading') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
+        <ActivityIndicator color={theme.primary} size="large" />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -19,7 +35,12 @@ export default function RootLayout() {
             headerShadowVisible: false,
             contentStyle: { backgroundColor: theme.background },
           }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Protected guard={status === 'signedIn'}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack.Protected>
+          <Stack.Protected guard={status !== 'signedIn'}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          </Stack.Protected>
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>

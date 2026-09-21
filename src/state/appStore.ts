@@ -1,25 +1,16 @@
 import { create } from 'zustand';
 
-import {
-  CATEGORIES,
-  FRIENDS,
-  INITIAL_GUESSES,
-  INITIAL_HISTORY,
-  INITIAL_STREAKS,
-  QUESTION_GROUPS,
-  TEST_USERS,
-} from '@/data/mockData';
+import { CATEGORIES, FRIENDS, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS } from '@/data/mockData';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { AnswerMap, Category, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
 import { pairKey } from '@/utils/pairKey';
 
 export type ResolutionStatus = 'not_guessed' | 'waiting_for_truth' | 'resolved';
 
 interface AppState {
-  /** Every known person - the switchable test identities plus generic NPC friends. */
+  /** Every known person: the signed-in real user plus the demo NPC friends. */
   users: Record<string, UserProfile>;
-  /** Identities that can be switched to via switchActiveUser (Momo/Bibble). */
-  testUserIds: string[];
-  /** Whoever "I" currently am - everything else in the app is relative to this. */
+  /** Whoever "I" currently am - everything else in the app is relative to this. Empty until syncRealUser runs. */
   activeUserId: string;
   groups: QuestionGroup[];
   /** subjectId -> groupId -> HistoryMap. Missing group = never answered. */
@@ -39,7 +30,6 @@ interface AppState {
   timeOffsetMs: number;
   /** The last calendar day (UTC) the streak/rollover check has processed. */
   lastProcessedDay: string;
-  switchActiveUser: (userId: string) => void;
   updateProfileName: (name: string) => void;
   updateProfileAvatar: (avatarEmoji: string) => void;
   submitSelfAnswers: (subjectId: string, groupId: string, answers: AnswerMap) => void;
@@ -48,6 +38,8 @@ interface AppState {
   advanceTimeBy: (ms: number) => void;
   jumpToNextDay: () => void;
   checkDayRollover: () => void;
+  /** Makes the real signed-in account "you" in the app - called once after login/signup. */
+  syncRealUser: (profile: UserProfile) => void;
 }
 
 function dayKey(date: Date): string {
@@ -126,9 +118,8 @@ export const useAppStore = create<AppState>((set, get) => {
   }
 
   return {
-    users: Object.fromEntries([...TEST_USERS, ...FRIENDS].map((u) => [u.id, u])),
-    testUserIds: TEST_USERS.map((u) => u.id),
-    activeUserId: TEST_USERS[0].id,
+    users: Object.fromEntries(FRIENDS.map((u) => [u.id, u])),
+    activeUserId: '',
     groups: QUESTION_GROUPS,
     history: INITIAL_HISTORY,
     guesses: INITIAL_GUESSES,
@@ -138,16 +129,20 @@ export const useAppStore = create<AppState>((set, get) => {
     timeOffsetMs: 0,
     lastProcessedDay: dayKey(new Date()),
 
-    switchActiveUser: (userId) => set({ activeUserId: userId }),
-
-    updateProfileName: (name) =>
+    updateProfileName: (name) => {
       set((state) => ({
         users: { ...state.users, [state.activeUserId]: { ...state.users[state.activeUserId], name } },
-      })),
-    updateProfileAvatar: (avatarEmoji) =>
+      }));
+      const userId = get().activeUserId;
+      if (isSupabaseConfigured) void supabase.from('profiles').update({ username: name }).eq('id', userId);
+    },
+    updateProfileAvatar: (avatarEmoji) => {
       set((state) => ({
         users: { ...state.users, [state.activeUserId]: { ...state.users[state.activeUserId], avatarEmoji } },
-      })),
+      }));
+      const userId = get().activeUserId;
+      if (isSupabaseConfigured) void supabase.from('profiles').update({ avatar_emoji: avatarEmoji }).eq('id', userId);
+    },
 
     advanceTimeBy: (ms) => {
       set((state) => ({ timeOffsetMs: state.timeOffsetMs + ms }));
@@ -226,6 +221,13 @@ export const useAppStore = create<AppState>((set, get) => {
             : [...state.favorites, { id, ownerId, friendId, groupId, questionId, likedAt }],
         };
       });
+    },
+
+    syncRealUser: (profile) => {
+      set((state) => ({
+        users: { ...state.users, [profile.id]: profile },
+        activeUserId: profile.id,
+      }));
     },
   };
 });

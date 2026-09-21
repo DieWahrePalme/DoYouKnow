@@ -1,5 +1,4 @@
 import { AnswerMap, AnswerValue, Category, HistoryMap, QuestionGroup, UserProfile } from '@/types';
-import { pairKey } from '@/utils/pairKey';
 
 /** Umbrella groupings shown on the Match screen, e.g. "Sport" rolls up Sport, Fitness & Gym, Lieblingssportarten. */
 export const CATEGORIES: Category[] = [
@@ -901,19 +900,7 @@ export const QUESTION_GROUPS: QuestionGroup[] = GROUP_DEFS.map((group) => ({
   questions: group.questions.map((text, index) => ({ id: `${group.id}-q${index + 1}`, text })),
 }));
 
-/**
- * The two switchable test identities - lets one person try both sides of
- * the app (answer, guess, match) on the same device before a real
- * multi-account backend exists. "Momo" carries over what used to be the
- * single fixed "me" persona, so its seeded history/streaks stay meaningful;
- * "Bibble" starts on a blank slate.
- */
-export const TEST_USERS: UserProfile[] = [
-  { id: 'momo', name: 'Momo', avatarEmoji: '🙂' },
-  { id: 'bibble', name: 'Bibble', avatarEmoji: '🦋' },
-];
-
-/** Generic NPC friends, shared by whichever test user is active. */
+/** Demo NPC friends every new real account starts out seeing, so Match/Streaks/Favoriten aren't empty on day one. */
 export const FRIENDS: UserProfile[] = [
   { id: 'lena', name: 'Lena', avatarEmoji: '🦊' },
   { id: 'tom', name: 'Tom', avatarEmoji: '🐨' },
@@ -922,12 +909,6 @@ export const FRIENDS: UserProfile[] = [
 ];
 
 export const AVATAR_CHOICES = ['🙂', '😎', '🦊', '🐨', '🐢', '🐝', '🐼', '🦁', '🐧', '🦄', '🐙', '🌵', '🦋', '🌸'];
-
-function monthsAgo(n: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return d.toISOString();
-}
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -943,16 +924,6 @@ function round(questionIds: string[], values: AnswerValue[], at: string): Histor
   return map;
 }
 
-function mergeRounds(...rounds: HistoryMap[]): HistoryMap {
-  const merged: HistoryMap = {};
-  for (const round_ of rounds) {
-    for (const [questionId, entries] of Object.entries(round_)) {
-      merged[questionId] = [...(merged[questionId] ?? []), ...entries];
-    }
-  }
-  return merged;
-}
-
 const urlaubIds = QUESTION_GROUPS.find((g) => g.id === 'urlaub')!.questions.map((q) => q.id);
 const sportIds = QUESTION_GROUPS.find((g) => g.id === 'sport')!.questions.map((q) => q.id);
 
@@ -962,45 +933,19 @@ const sportIds = QUESTION_GROUPS.find((g) => g.id === 'sport')!.questions.map((q
  * timestamped entry per question - nothing is ever overwritten.
  */
 export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {
-  momo: {
-    // Demonstrates exactly the "changed my mind over the year" use case:
-    // question 3 ("lieber campen") went Nie -> Eher ja -> (answer again to see it become "Ja").
-    urlaub: mergeRounds(
-      round(urlaubIds, ['no', 'no', 'never', 'yes', 'leanYes'], monthsAgo(12)),
-      round(urlaubIds, ['leanNo', 'no', 'leanYes', 'yes', 'yes'], monthsAgo(3)),
-    ),
-  },
   tom: {
     sport: round(sportIds, ['yes', 'leanYes', 'no', 'leanNo', 'yes'], daysAgo(2)),
   },
   lena: {
-    // High overlap with Momo on Urlaub - shows up as a strong Match.
     urlaub: round(urlaubIds, ['leanNo', 'no', 'leanYes', 'yes', 'leanNo'], daysAgo(5)),
   },
   mia: {
-    // Mostly different from Momo on Urlaub - shows up as a weak Match.
     urlaub: round(urlaubIds, ['yes', 'yes', 'no', 'no', 'no'], daysAgo(10)),
   },
 };
 
-/** guesserId -> subjectId -> groupId -> the guesser's guess about that subject. */
-export const INITIAL_GUESSES: Record<string, Record<string, Record<string, AnswerMap>>> = {
-  lena: {
-    momo: {
-      freizeit: {
-        'freizeit-q1': 'leanYes',
-        'freizeit-q2': 'yes',
-        'freizeit-q3': 'no',
-        'freizeit-q4': 'leanNo',
-        'freizeit-q5': 'yes',
-      },
-    },
-  },
-};
+/** guesserId -> subjectId -> groupId -> the guesser's guess about that subject. Empty until real accounts guess about each other. */
+export const INITIAL_GUESSES: Record<string, Record<string, Record<string, AnswerMap>>> = {};
 
-/** pairKey(a, b) -> streak. Bibble starts fresh with everyone (absent = 0). */
-export const INITIAL_STREAKS: Record<string, number> = {
-  [pairKey('lena', 'momo')]: 12,
-  [pairKey('momo', 'tom')]: 5,
-  [pairKey('mia', 'momo')]: 3,
-};
+/** pairKey(a, b) -> streak. Empty until two real accounts actually resolve a shared day. */
+export const INITIAL_STREAKS: Record<string, number> = {};
