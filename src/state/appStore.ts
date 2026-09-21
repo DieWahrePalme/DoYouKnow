@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { CATEGORIES, FRIENDS, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS } from '@/data/mockData';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
-import { AnswerMap, Category, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
+import { AnswerMap, AnswerValue, Category, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
 import { pairKey } from '@/utils/pairKey';
 
 export type ResolutionStatus = 'not_guessed' | 'waiting_for_truth' | 'resolved';
@@ -44,6 +44,14 @@ interface AppState {
   mergeRealFriend: (profile: UserProfile) => void;
   /** Drops a friend from the local roster - called after the backing friendship row (if any) is deleted. */
   removeFriendFromUsers: (friendId: string) => void;
+  /**
+   * Pulls answers/guesses/streaks involving the active user and everyone
+   * currently in `users` from Supabase into local state - without this,
+   * a page reload wiped everything back to empty because those maps only
+   * ever lived in memory. Safe to call repeatedly (e.g. whenever the
+   * friend list changes); it always replaces with the latest server state.
+   */
+  loadCloudData: () => Promise<void>;
 }
 
 function dayKey(date: Date): string {
@@ -106,6 +114,12 @@ export const useAppStore = create<AppState>((set, get) => {
     return aGuessedB === 'resolved' || bGuessedA === 'resolved';
   }
 
+  function pushStreak(userAId: string, userBId: string, streak: number, bumpedOn: string) {
+    if (!isSupabaseConfigured) return;
+    const [user_a, user_b] = [userAId, userBId].sort();
+    void supabase.from('streaks').upsert({ user_a, user_b, streak, bumped_on: bumpedOn }, { onConflict: 'user_a,user_b' });
+  }
+
   function bumpStreakIfResolved(userAId: string, userBId: string) {
     const state = get();
     const key = pairKey(userAId, userBId);
@@ -114,10 +128,12 @@ export const useAppStore = create<AppState>((set, get) => {
     const anyResolved = state.groups.some((group) => resolvedBetween(userAId, userBId, group.id));
 
     if (anyResolved) {
+      const newStreak = (state.streaks[key] ?? 0) + 1;
       set((s) => ({
-        streaks: { ...s.streaks, [key]: (s.streaks[key] ?? 0) + 1 },
+        streaks: { ...s.streaks, [key]: newStreak },
         streakBumpedToday: { ...s.streakBumpedToday, [key]: true },
       }));
+      pushStreak(userAId, userBId, newStreak, dayKey(getEffectiveNow(state)));
     }
   }
 
@@ -168,7 +184,15 @@ export const useAppStore = create<AppState>((set, get) => {
       set((s) => {
         const nextStreaks: Record<string, number> = {};
         for (const key of Object.keys(s.streaks)) {
-          nextStreaks[key] = s.streakBumpedToday[key] ? s.streaks[key] : 0;
+          if (s.streakBumpedToday[key]) {
+            nextStreaks[key] = s.streaks[key];
+          } else {
+            nextStreaks[key] = 0;
+            if (s.streaks[key] > 0) {
+              const [a, b] = key.split(':');
+              pushStreak(a, b, 0, today);
+            }
+          }
         }
         return { streaks: nextStreaks, streakBumpedToday: {}, lastProcessedDay: today };
       });
@@ -176,8 +200,8 @@ export const useAppStore = create<AppState>((set, get) => {
 
     submitSelfAnswers: (subjectId, groupId, answers) => {
       const at = getEffectiveNow(get()).toISOString();
+      const groupQuestions = get().groups.find((g) => g.id === groupId)?.questions ?? [];
       set((state) => {
-        const groupQuestions = state.groups.find((g) => g.id === groupId)?.questions ?? [];
         const existingForSubject = state.history[subjectId] ?? {};
         const existingForGroup = existingForSubject[groupId] ?? {};
         const updatedGroup: HistoryMap = {};
@@ -192,6 +216,18 @@ export const useAppStore = create<AppState>((set, get) => {
           },
         };
       });
+
+      if (isSupabaseConfigured && groupQuestions.length > 0) {
+        void supabase.from('answers').insert(
+          groupQuestions.map((question) => ({
+            user_id: subjectId,
+            group_id: groupId,
+            question_id: question.id,
+            value: answers[question.id],
+            answered_at: at,
+          })),
+        );
+      }
 
       // Answering can unlock any pending guess anyone else already made about this subject.
       for (const otherId of Object.keys(get().users)) {
@@ -210,6 +246,22 @@ export const useAppStore = create<AppState>((set, get) => {
           },
         },
       }));
+
+      if (isSupabaseConfigured) {
+        const at = getEffectiveNow(get()).toISOString();
+        void supabase.from('guesses').upsert(
+          Object.entries(answers).map(([questionId, value]) => ({
+            guesser_id: guesserId,
+            subject_id: subjectId,
+            group_id: groupId,
+            question_id: questionId,
+            value,
+            updated_at: at,
+          })),
+          { onConflict: 'guesser_id,subject_id,group_id,question_id' },
+        );
+      }
+
       bumpStreakIfResolved(guesserId, subjectId);
     },
 
@@ -245,6 +297,61 @@ export const useAppStore = create<AppState>((set, get) => {
         return { users };
       });
     },
+
+    loadCloudData: async () => {
+      if (!isSupabaseConfigured) return;
+      const myId = get().activeUserId;
+      if (!myId) return;
+      const relevantIds = Array.from(new Set([myId, ...Object.keys(get().users).filter((id) => id !== myId)]));
+
+      const [answersRes, guessesRes, streaksRes] = await Promise.all([
+        supabase
+          .from('answers')
+          .select('user_id, group_id, question_id, value, answered_at')
+          .in('user_id', relevantIds),
+        supabase
+          .from('guesses')
+          .select('guesser_id, subject_id, group_id, question_id, value')
+          .or(`guesser_id.eq.${myId},subject_id.eq.${myId}`),
+        supabase.from('streaks').select('user_a, user_b, streak').or(`user_a.eq.${myId},user_b.eq.${myId}`),
+      ]);
+
+      const cloudHistory: Record<string, Record<string, HistoryMap>> = {};
+      for (const row of answersRes.data ?? []) {
+        const bySubject = (cloudHistory[row.user_id] ??= {});
+        const byGroup = (bySubject[row.group_id] ??= {});
+        const entries = (byGroup[row.question_id] ??= []);
+        entries.push({ value: row.value as AnswerValue, at: row.answered_at });
+      }
+      for (const bySubject of Object.values(cloudHistory)) {
+        for (const byGroup of Object.values(bySubject)) {
+          for (const entries of Object.values(byGroup)) {
+            entries.sort((a, b) => a.at.localeCompare(b.at));
+          }
+        }
+      }
+
+      const cloudGuesses: Record<string, Record<string, Record<string, AnswerMap>>> = {};
+      for (const row of guessesRes.data ?? []) {
+        const bySubject = (cloudGuesses[row.guesser_id] ??= {});
+        const byGroup = (bySubject[row.subject_id] ??= {});
+        (byGroup[row.group_id] ??= {})[row.question_id] = row.value as AnswerValue;
+      }
+
+      const cloudStreaks: Record<string, number> = {};
+      for (const row of streaksRes.data ?? []) {
+        cloudStreaks[pairKey(row.user_a, row.user_b)] = row.streak;
+      }
+
+      set((s) => {
+        const history = { ...s.history, ...cloudHistory };
+        const guesses = { ...s.guesses };
+        for (const [guesserId, bySubject] of Object.entries(cloudGuesses)) {
+          guesses[guesserId] = { ...(guesses[guesserId] ?? {}), ...bySubject };
+        }
+        return { history, guesses, streaks: { ...s.streaks, ...cloudStreaks } };
+      });
+    },
   };
 });
 
@@ -258,17 +365,6 @@ export function theirGuessStatus(state: AppState, friendId: string, groupId: str
   const guess = state.guesses[friendId]?.[state.activeUserId]?.[groupId];
   const truth = latestAnswers(state.history[state.activeUserId]?.[groupId]);
   return statusOf(guess, truth);
-}
-
-export function hasHourglassForGroup(state: AppState, friendId: string, groupId: string): boolean {
-  return (
-    myGuessStatus(state, friendId, groupId) === 'waiting_for_truth' ||
-    theirGuessStatus(state, friendId, groupId) === 'waiting_for_truth'
-  );
-}
-
-export function hasHourglassForFriend(state: AppState, friendId: string): boolean {
-  return state.groups.some((group) => hasHourglassForGroup(state, friendId, group.id));
 }
 
 /** How many of my groups friends are waiting on me to answer, across everyone. */

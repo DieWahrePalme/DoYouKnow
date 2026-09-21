@@ -87,6 +87,8 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       outgoingPendingIds: (outgoingRows ?? []).map((r) => r.friend_id),
       loading: false,
     });
+
+    void useAppStore.getState().loadCloudData();
   },
 
   searchUsers: async (query) => {
@@ -148,6 +150,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
     await supabase.from('friendships').update({ status: 'accepted' }).eq('id', request.friendshipId);
     useAppStore.getState().mergeRealFriend(request.from);
     set((state) => ({ incomingRequests: state.incomingRequests.filter((r) => r.friendshipId !== request.friendshipId) }));
+    void useAppStore.getState().loadCloudData();
   },
 
   declineRequest: async (friendshipId) => {

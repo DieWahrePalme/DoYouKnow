@@ -2,16 +2,18 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { StreakBadge } from '@/components/streak-badge';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Spacing, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface FriendRowProps {
   avatarEmoji: string;
   name: string;
   streak: number;
-  pending?: boolean;
   subtitle?: string;
   hideStreak?: boolean;
+  /** Small colored badge next to the streak showing today's resolution status - see StatusChip below. */
+  statusIcon?: string;
+  statusTone?: ThemeColor;
   onPress: () => void;
 }
 
@@ -19,9 +21,10 @@ export function FriendRow({
   avatarEmoji,
   name,
   streak,
-  pending,
   subtitle,
   hideStreak,
+  statusIcon,
+  statusTone,
   onPress,
 }: FriendRowProps) {
   const theme = useTheme();
@@ -46,7 +49,12 @@ export function FriendRow({
           </ThemedText>
         ) : null}
       </View>
-      {!hideStreak && <StreakBadge streak={streak} pending={pending} />}
+      {statusIcon ? (
+        <View style={[styles.statusChip, { backgroundColor: `${theme[statusTone ?? 'textSecondary']}26` }]}>
+          <ThemedText style={styles.statusIcon}>{statusIcon}</ThemedText>
+        </View>
+      ) : null}
+      {!hideStreak && <StreakBadge streak={streak} />}
     </Pressable>
   );
 }
@@ -76,5 +84,15 @@ const styles = StyleSheet.create({
   },
   name: {
     fontWeight: '600',
+  },
+  statusChip: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusIcon: {
+    fontSize: 14,
   },
 });

@@ -6,13 +6,13 @@ import { CountdownTimer } from '@/components/countdown-timer';
 import { FriendRow } from '@/components/friend-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, ThemeColor } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import {
   getTodaysGroupIdFor,
-  hasHourglassForFriend,
   latestAnswers,
+  msUntilNextDay,
   myGuessStatus,
   streakWith,
   useAppStore,
@@ -20,6 +20,9 @@ import {
 import { useFriendsStore } from '@/state/friendsStore';
 import { UserProfile } from '@/types';
 import { pairKey } from '@/utils/pairKey';
+
+/** Within this window before the daily deadline, "not answered yet" escalates from a neutral x to an urgent warning. */
+const URGENCY_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 function TopBar() {
   const theme = useTheme();
@@ -52,7 +55,6 @@ function TopBar() {
 }
 
 function FriendListItem({ friend }: { friend: UserProfile }) {
-  const pending = useAppStore((state) => hasHourglassForFriend(state, friend.id));
   const streak = useAppStore((state) => streakWith(state, friend.id));
   const groups = useAppStore((state) => state.groups);
   const now = useEffectiveNow();
@@ -60,13 +62,20 @@ function FriendListItem({ friend }: { friend: UserProfile }) {
   const todaysGroup = groups.find((g) => g.id === todaysGroupId)!;
   const status = useAppStore((state) => myGuessStatus(state, friend.id, todaysGroupId));
 
-  let statusText: string;
+  let statusIcon: string;
+  let statusTone: ThemeColor;
   if (status === 'resolved') {
-    statusText = 'aufgelöst';
+    statusIcon = '✅';
+    statusTone = 'success';
   } else if (status === 'waiting_for_truth') {
-    statusText = `wartet auf ${friend.name}`;
+    statusIcon = '⏳';
+    statusTone = 'primary';
+  } else if (now && msUntilNextDay(now) <= URGENCY_WINDOW_MS) {
+    statusIcon = '❗';
+    statusTone = 'danger';
   } else {
-    statusText = 'jetzt raten';
+    statusIcon = '❌';
+    statusTone = 'textSecondary';
   }
 
   return (
@@ -74,8 +83,9 @@ function FriendListItem({ friend }: { friend: UserProfile }) {
       avatarEmoji={friend.avatarEmoji}
       name={friend.name}
       streak={streak}
-      pending={pending}
-      subtitle={now ? `Heute: ${todaysGroup.icon} ${todaysGroup.name} · ${statusText}` : 'Lädt …'}
+      statusIcon={now ? statusIcon : undefined}
+      statusTone={statusTone}
+      subtitle={now ? `Heute: ${todaysGroup.icon} ${todaysGroup.name}` : 'Lädt …'}
       onPress={() =>
         router.push({
           pathname: '/friend/[id]/group/[groupId]',
@@ -137,10 +147,10 @@ export default function HomeScreen() {
   const activeUserId = useAppStore((state) => state.activeUserId);
   const streaks = useAppStore((state) => state.streaks);
   const streakOf = (friendId: string) => streaks[pairKey(activeUserId, friendId)] ?? 0;
+  // Every accepted friend shows up right away - streak only decides the order, not visibility.
   const friends = Object.values(users)
     .filter((user) => user.id !== activeUserId)
-    .filter((friend) => streakOf(friend.id) > 0)
-    .sort((a, b) => streakOf(b.id) - streakOf(a.id));
+    .sort((a, b) => streakOf(b.id) - streakOf(a.id) || a.name.localeCompare(b.name));
 
   return (
     <ThemedView style={styles.container}>
