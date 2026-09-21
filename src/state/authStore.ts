@@ -23,6 +23,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
   retryProfileLoad: () => Promise<void>;
   clearError: () => void;
 }
@@ -148,6 +149,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: NOT_CONFIGURED_ERROR };
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: getAppUrl() });
+    const message = error ? friendlyAuthError(error.message) : null;
+    set({ error: message });
+    return { error: message };
+  },
+
+  updatePassword: async (newPassword) => {
+    set({ error: null });
+    if (!isSupabaseConfigured) {
+      set({ error: NOT_CONFIGURED_ERROR });
+      return { error: NOT_CONFIGURED_ERROR };
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
     const message = error ? friendlyAuthError(error.message) : null;
     set({ error: message });
     return { error: message };

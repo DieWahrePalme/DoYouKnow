@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { AVATAR_CHOICES } from '@/data/mockData';
+import { CATEGORIES } from '@/data/mockData';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -17,30 +17,8 @@ import {
   totalGuessesCollected,
   useAppStore,
 } from '@/state/appStore';
-import { useAuthStore } from '@/state/authStore';
 import { QuestionGroup } from '@/types';
 import { formatRelative } from '@/utils/formatRelative';
-
-function AccountSection() {
-  const theme = useTheme();
-  const email = useAuthStore((state) => state.session?.user.email);
-  const signOut = useAuthStore((state) => state.signOut);
-
-  return (
-    <View style={[styles.accountWrap, { backgroundColor: theme.backgroundElement }]}>
-      {email ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {email}
-        </ThemedText>
-      ) : null}
-      <Pressable onPress={() => signOut()} style={styles.signOutButton}>
-        <ThemedText type="smallBold" style={{ color: theme.danger }}>
-          Abmelden
-        </ThemedText>
-      </Pressable>
-    </View>
-  );
-}
 
 function StatColumn({ value, label }: { value: number; label: string }) {
   return (
@@ -52,6 +30,33 @@ function StatColumn({ value, label }: { value: number; label: string }) {
         {label}
       </ThemedText>
     </View>
+  );
+}
+
+function CategoryChip({
+  icon,
+  label,
+  active,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.chip,
+        { backgroundColor: active ? theme.primary : theme.backgroundElement },
+      ]}>
+      <ThemedText style={styles.chipIcon}>{icon}</ThemedText>
+      <ThemedText type="smallBold" style={{ color: active ? '#FFFFFF' : theme.text }}>
+        {label}
+      </ThemedText>
+    </Pressable>
   );
 }
 
@@ -113,54 +118,34 @@ export default function ProfileScreen() {
   const friendCount = useAppStore((state) => Object.keys(state.users).length - 1);
   const answeredCount = useAppStore((state) => answeredGroupCount(state));
   const collectedCount = useAppStore((state) => totalGuessesCollected(state));
-  const updateProfileName = useAppStore((state) => state.updateProfileName);
-  const updateProfileAvatar = useAppStore((state) => state.updateProfileAvatar);
   const now = useEffectiveNow();
   const todaysGroupId = now ? getTodaysGroupIdFor(activeUserId, groups, now) : groups[0].id;
 
-  const [isPickingAvatar, setIsPickingAvatar] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [nameDraft, setNameDraft] = useState(profile.name);
-  const nameInputRef = useRef<TextInput>(null);
-  const hasCommittedRef = useRef(false);
-
-  useEffect(() => {
-    setIsEditingName(false);
-    setIsPickingAvatar(false);
-    setNameDraft(profile.name);
-  }, [activeUserId, profile.name]);
-
-  function startEditingName() {
-    hasCommittedRef.current = false;
-    setNameDraft(profile.name);
-    setIsEditingName(true);
-  }
-
-  function commitName() {
-    if (hasCommittedRef.current) return;
-    hasCommittedRef.current = true;
-    const trimmed = nameDraft.trim();
-    if (trimmed) {
-      updateProfileName(trimmed);
-    }
-    setIsEditingName(false);
-  }
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const visibleGroups = activeCategory ? groups.filter((g) => g.category === activeCategory) : groups;
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-          <AccountSection />
+          <View style={styles.topBar}>
+            <View style={styles.topBarSpacer} />
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={12}
+              style={[styles.menuButton, { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText style={styles.menuIcon}>☰</ThemedText>
+            </Pressable>
+          </View>
+
+          <ThemedText type="small" themeColor="textSecondary" style={styles.username}>
+            {profile.name}
+          </ThemedText>
 
           <View style={styles.headerRow}>
-            <Pressable
-              onPress={() => setIsPickingAvatar((v) => !v)}
-              style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
+            <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
               <ThemedText style={styles.avatarEmoji}>{profile.avatarEmoji}</ThemedText>
-              <View style={[styles.editBadge, { backgroundColor: theme.background }]}>
-                <ThemedText style={styles.editBadgeText}>✎</ThemedText>
-              </View>
-            </Pressable>
+            </View>
 
             <View style={styles.stats}>
               <StatColumn value={friendCount} label="Freunde" />
@@ -169,43 +154,21 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {isEditingName ? (
-            <TextInput
-              ref={nameInputRef}
-              autoFocus
-              value={nameDraft}
-              onChangeText={setNameDraft}
-              onSubmitEditing={() => nameInputRef.current?.blur()}
-              onBlur={commitName}
-              style={[styles.nameInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
-            />
-          ) : (
-            <Pressable onPress={startEditingName} style={styles.nameRow}>
-              <ThemedText type="subtitle">{profile.name} ✎</ThemedText>
-            </Pressable>
-          )}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
+            <CategoryChip icon="✨" label="Alle" active={activeCategory === null} onPress={() => setActiveCategory(null)} />
+            {CATEGORIES.map((category) => (
+              <CategoryChip
+                key={category.id}
+                icon={category.icon}
+                label={category.name}
+                active={activeCategory === category.id}
+                onPress={() => setActiveCategory(category.id)}
+              />
+            ))}
+          </ScrollView>
 
-          {isPickingAvatar ? (
-            <View style={styles.avatarGrid}>
-              {AVATAR_CHOICES.map((emoji) => (
-                <Pressable
-                  key={emoji}
-                  onPress={() => {
-                    updateProfileAvatar(emoji);
-                    setIsPickingAvatar(false);
-                  }}
-                  style={[styles.avatarChoice, { backgroundColor: theme.backgroundElement }]}>
-                  <ThemedText style={styles.avatarChoiceEmoji}>{emoji}</ThemedText>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
-            Deine Themen
-          </ThemedText>
           <View style={styles.grid}>
-            {groups.map((group) => (
+            {visibleGroups.map((group) => (
               <GroupTile key={group.id} group={group} isToday={group.id === todaysGroupId} />
             ))}
           </View>
@@ -232,23 +195,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.five,
   },
-  accountWrap: {
-    marginTop: Spacing.three,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: Spacing.three,
   },
-  signOutButton: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
+  topBarSpacer: {
+    flex: 1,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuIcon: {
+    fontSize: 18,
+  },
+  username: {
+    marginTop: Spacing.two,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.four,
-    marginTop: Spacing.four,
+    marginTop: Spacing.one,
   },
   avatar: {
     width: 84,
@@ -259,19 +232,6 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: {
     fontSize: 38,
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editBadgeText: {
-    fontSize: 12,
   },
   stats: {
     flex: 1,
@@ -286,43 +246,29 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 24,
   },
-  nameRow: {
-    marginTop: Spacing.three,
-  },
-  nameInput: {
-    marginTop: Spacing.three,
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: '600',
-    borderBottomWidth: 2,
-    alignSelf: 'flex-start',
-    minWidth: 160,
-  },
-  avatarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-    marginTop: Spacing.three,
-  },
-  avatarChoice: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarChoiceEmoji: {
-    fontSize: 20,
-  },
-  sectionLabel: {
+  chipRow: {
     marginTop: Spacing.four,
-    marginBottom: Spacing.two,
-    textTransform: 'uppercase',
+  },
+  chipRowContent: {
+    gap: Spacing.two,
+    paddingRight: Spacing.three,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.five,
+  },
+  chipIcon: {
+    fontSize: 15,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
+    marginTop: Spacing.three,
   },
   tile: {
     width: '31%',
