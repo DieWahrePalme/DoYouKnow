@@ -42,6 +42,8 @@ interface AppState {
   syncRealUser: (profile: UserProfile) => void;
   /** Adds a real accepted friend's profile to the roster so every screen that reads `users` picks them up. */
   mergeRealFriend: (profile: UserProfile) => void;
+  /** Drops a friend from the local roster - called after the backing friendship row (if any) is deleted. */
+  removeFriendFromUsers: (friendId: string) => void;
 }
 
 function dayKey(date: Date): string {
@@ -234,6 +236,14 @@ export const useAppStore = create<AppState>((set, get) => {
 
     mergeRealFriend: (profile) => {
       set((state) => ({ users: { ...state.users, [profile.id]: profile } }));
+    },
+
+    removeFriendFromUsers: (friendId) => {
+      set((state) => {
+        const users = { ...state.users };
+        delete users[friendId];
+        return { users };
+      });
     },
   };
 });

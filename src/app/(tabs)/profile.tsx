@@ -20,17 +20,26 @@ import {
 import { QuestionGroup } from '@/types';
 import { formatRelative } from '@/utils/formatRelative';
 
-function StatColumn({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.statColumn}>
+function StatColumn({ value, label, onPress }: { value: number; label: string; onPress?: () => void }) {
+  const content = (
+    <>
       <ThemedText type="subtitle" style={styles.statValue}>
         {value}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
-    </View>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable style={styles.statColumn} onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+  return <View style={styles.statColumn}>{content}</View>;
 }
 
 function CategoryChip({
@@ -148,7 +157,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.stats}>
-              <StatColumn value={friendCount} label="Freunde" />
+              <StatColumn value={friendCount} label="Freunde" onPress={() => router.push('/friends')} />
               <StatColumn value={answeredCount} label="Beantwortet" />
               <StatColumn value={collectedCount} label="Gesammelt" />
             </View>

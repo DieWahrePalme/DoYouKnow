@@ -32,6 +32,7 @@ interface FriendsState {
   sendRequest: (targetUserId: string) => Promise<{ error: string | null }>;
   acceptRequest: (request: IncomingRequest) => Promise<void>;
   declineRequest: (friendshipId: string) => Promise<void>;
+  removeFriend: (friendId: string) => Promise<void>;
 }
 
 export const useFriendsStore = create<FriendsState>((set, get) => ({
@@ -152,5 +153,15 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
   declineRequest: async (friendshipId) => {
     await supabase.from('friendships').delete().eq('id', friendshipId);
     set((state) => ({ incomingRequests: state.incomingRequests.filter((r) => r.friendshipId !== friendshipId) }));
+  },
+
+  removeFriend: async (friendId) => {
+    const myId = useAppStore.getState().activeUserId;
+    // No-ops harmlessly for the demo NPC friends, which have no backing row.
+    await supabase
+      .from('friendships')
+      .delete()
+      .or(`and(user_id.eq.${myId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${myId})`);
+    useAppStore.getState().removeFriendFromUsers(friendId);
   },
 }));

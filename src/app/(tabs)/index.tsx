@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
+import { useTheme } from '@/hooks/use-theme';
 import {
   getTodaysGroupIdFor,
   hasHourglassForFriend,
@@ -17,8 +18,8 @@ import {
   useAppStore,
 } from '@/state/appStore';
 import { useFriendsStore } from '@/state/friendsStore';
-import { useTheme } from '@/hooks/use-theme';
 import { UserProfile } from '@/types';
+import { pairKey } from '@/utils/pairKey';
 
 function TopBar() {
   const theme = useTheme();
@@ -115,10 +116,31 @@ function TodaysCard() {
   );
 }
 
+function ChallengeCard() {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => router.push('/friends')}
+      style={[styles.challengeCard, { borderColor: theme.border }]}>
+      <View style={[styles.challengeIconWrap, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText style={styles.challengeIcon}>＋</ThemedText>
+      </View>
+      <ThemedText type="small" themeColor="textSecondary">
+        Freund herausfordern
+      </ThemedText>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
   const users = useAppStore((state) => state.users);
   const activeUserId = useAppStore((state) => state.activeUserId);
-  const friends = Object.values(users).filter((user) => user.id !== activeUserId);
+  const streaks = useAppStore((state) => state.streaks);
+  const streakOf = (friendId: string) => streaks[pairKey(activeUserId, friendId)] ?? 0;
+  const friends = Object.values(users)
+    .filter((user) => user.id !== activeUserId)
+    .filter((friend) => streakOf(friend.id) > 0)
+    .sort((a, b) => streakOf(b.id) - streakOf(a.id));
 
   return (
     <ThemedView style={styles.container}>
@@ -145,6 +167,7 @@ export default function HomeScreen() {
               </ThemedText>
             </>
           }
+          ListFooterComponent={<ChallengeCard />}
           renderItem={({ item }) => <FriendListItem friend={item} />}
         />
       </SafeAreaView>
@@ -217,5 +240,24 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: Spacing.one,
+  },
+  challengeCard: {
+    marginTop: Spacing.one,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: Spacing.three,
+    paddingVertical: Spacing.four,
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  challengeIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  challengeIcon: {
+    fontSize: 20,
   },
 });
