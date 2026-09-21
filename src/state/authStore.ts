@@ -59,6 +59,18 @@ function friendlyAuthError(message: string): string {
 
 const NOT_CONFIGURED_ERROR = 'Backend ist noch nicht verbunden - trag EXPO_PUBLIC_SUPABASE_URL/ANON_KEY in .env ein.';
 
+/**
+ * Where confirmation/reset links should send people back to - derived from
+ * wherever the app is actually running (GitHub Pages subpath, a future
+ * custom domain, local dev) instead of Supabase's dashboard "Site URL",
+ * which defaults to http://localhost:3000 and is easy to forget to update.
+ */
+function getAppUrl(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const basePath = process.env.EXPO_BASE_URL ?? '';
+  return `${window.location.origin}${basePath}/`;
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
   session: null,
@@ -106,7 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username, avatar_emoji: '🙂' } },
+      options: { data: { username, avatar_emoji: '🙂' }, emailRedirectTo: getAppUrl() },
     });
     const message = error ? friendlyAuthError(error.message) : null;
     set({ error: message });
@@ -135,7 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ error: NOT_CONFIGURED_ERROR });
       return { error: NOT_CONFIGURED_ERROR };
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: getAppUrl() });
     const message = error ? friendlyAuthError(error.message) : null;
     set({ error: message });
     return { error: message };
