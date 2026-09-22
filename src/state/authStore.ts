@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { useAppStore } from '@/state/appStore';
 
 export interface AuthProfile {
   id: string;
@@ -89,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const { profile, error } = await loadProfile(data.session.user.id);
         set({ session: data.session, profile, profileError: error, status: 'signedIn' });
       } else {
+        useAppStore.getState().resetForSignOut();
         set({ status: 'signedOut' });
       }
     });
@@ -98,6 +100,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const { profile, error } = await loadProfile(session.user.id);
         set({ session, profile, profileError: error, status: 'signedIn' });
       } else {
+        // Also fires when switching accounts in the same tab (sign out ->
+        // sign in as someone else) - without this, the previous account's
+        // profile stayed in appStore's `users` map and showed up as a
+        // phantom friend for whoever signs in next.
+        useAppStore.getState().resetForSignOut();
         set({ session: null, profile: null, profileError: null, status: 'signedOut' });
       }
     });

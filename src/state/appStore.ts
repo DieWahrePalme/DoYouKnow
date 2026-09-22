@@ -52,6 +52,14 @@ interface AppState {
    * friend list changes); it always replaces with the latest server state.
    */
   loadCloudData: () => Promise<void>;
+  /**
+   * Clears everything tied to the signed-in identity - users, history,
+   * guesses, streaks, favorites. Call this on sign-out; without it, signing
+   * out and signing into a *different* account in the same browser tab left
+   * the previous account's profile sitting in `users`, where it showed up
+   * as a phantom "friend" for whoever signed in next.
+   */
+  resetForSignOut: () => void;
 }
 
 function dayKey(date: Date): string {
@@ -350,6 +358,18 @@ export const useAppStore = create<AppState>((set, get) => {
           guesses[guesserId] = { ...(guesses[guesserId] ?? {}), ...bySubject };
         }
         return { history, guesses, streaks: { ...s.streaks, ...cloudStreaks } };
+      });
+    },
+
+    resetForSignOut: () => {
+      set({
+        users: {},
+        activeUserId: '',
+        history: {},
+        guesses: {},
+        streaks: {},
+        streakBumpedToday: {},
+        favorites: [],
       });
     },
   };
