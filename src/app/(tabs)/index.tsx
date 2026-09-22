@@ -1,4 +1,5 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -23,6 +24,9 @@ import { pairKey } from '@/utils/pairKey';
 
 /** Within this window before the daily deadline, "not answered yet" escalates from a neutral x to an urgent warning. */
 const URGENCY_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+/** How often Home quietly re-syncs with Supabase while it's the visible screen, so a friend answering shows up without a manual reload. */
+const AUTO_REFRESH_INTERVAL_MS = 20 * 1000;
 
 function TopBar() {
   const theme = useTheme();
@@ -152,6 +156,29 @@ export default function HomeScreen() {
     .filter((user) => user.id !== activeUserId)
     .sort((a, b) => streakOf(b.id) - streakOf(a.id) || a.name.localeCompare(b.name));
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    await useFriendsStore.getState().fetchAll();
+  }, []);
+
+  const onPullToRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
+
+  // Re-syncs whenever Home becomes the visible screen (e.g. coming back from
+  // answering/guessing), then keeps quietly polling while it stays visible -
+  // so a friend answering their questions shows up without a manual reload.
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+      const interval = setInterval(() => void refresh(), AUTO_REFRESH_INTERVAL_MS);
+      return () => clearInterval(interval);
+    }, [refresh]),
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -161,6 +188,8 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
+          refreshing={refreshing}
+          onRefresh={onPullToRefresh}
           ListHeaderComponent={
             <>
               <TopBar />
