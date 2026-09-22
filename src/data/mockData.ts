@@ -1,4 +1,4 @@
-import { AnswerMap, AnswerValue, Category, HistoryMap, QuestionGroup, UserProfile } from '@/types';
+import { AnswerMap, Category, HistoryMap, QuestionGroup } from '@/types';
 
 /** Umbrella groupings shown on the Match screen, e.g. "Sport" rolls up Sport, Fitness & Gym, Lieblingssportarten. */
 export const CATEGORIES: Category[] = [
@@ -900,49 +900,10 @@ export const QUESTION_GROUPS: QuestionGroup[] = GROUP_DEFS.map((group) => ({
   questions: group.questions.map((text, index) => ({ id: `${group.id}-q${index + 1}`, text })),
 }));
 
-/** Demo NPC friends every new real account starts out seeing, so Match/Streaks/Favoriten aren't empty on day one. */
-export const FRIENDS: UserProfile[] = [
-  { id: 'lena', name: 'Lena', avatarEmoji: '🦊' },
-  { id: 'tom', name: 'Tom', avatarEmoji: '🐨' },
-  { id: 'sara', name: 'Sara', avatarEmoji: '🐢' },
-  { id: 'mia', name: 'Mia', avatarEmoji: '🐝' },
-];
-
 export const AVATAR_CHOICES = ['🙂', '😎', '🦊', '🐨', '🐢', '🐝', '🐼', '🦁', '🐧', '🦄', '🐙', '🌵', '🦋', '🌸'];
 
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString();
-}
-
-function round(questionIds: string[], values: AnswerValue[], at: string): HistoryMap {
-  const map: HistoryMap = {};
-  questionIds.forEach((id, i) => {
-    map[id] = [{ value: values[i], at }];
-  });
-  return map;
-}
-
-const urlaubIds = QUESTION_GROUPS.find((g) => g.id === 'urlaub')!.questions.map((q) => q.id);
-const sportIds = QUESTION_GROUPS.find((g) => g.id === 'sport')!.questions.map((q) => q.id);
-
-/**
- * subjectId -> groupId -> HistoryMap. A missing group means "never answered
- * yet". Each completed round through a group's 5 questions adds one new,
- * timestamped entry per question - nothing is ever overwritten.
- */
-export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {
-  tom: {
-    sport: round(sportIds, ['yes', 'leanYes', 'no', 'leanNo', 'yes'], daysAgo(2)),
-  },
-  lena: {
-    urlaub: round(urlaubIds, ['leanNo', 'no', 'leanYes', 'yes', 'leanNo'], daysAgo(5)),
-  },
-  mia: {
-    urlaub: round(urlaubIds, ['yes', 'yes', 'no', 'no', 'no'], daysAgo(10)),
-  },
-};
+/** subjectId -> groupId -> HistoryMap. Empty until real accounts answer. */
+export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {};
 
 /** guesserId -> subjectId -> groupId -> the guesser's guess about that subject. Empty until real accounts guess about each other. */
 export const INITIAL_GUESSES: Record<string, Record<string, Record<string, AnswerMap>>> = {};

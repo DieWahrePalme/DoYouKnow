@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { CATEGORIES, FRIENDS, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS } from '@/data/mockData';
+import { CATEGORIES, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS } from '@/data/mockData';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { AnswerMap, AnswerValue, Category, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
 import { pairKey } from '@/utils/pairKey';
@@ -8,7 +8,7 @@ import { pairKey } from '@/utils/pairKey';
 export type ResolutionStatus = 'not_guessed' | 'waiting_for_truth' | 'resolved';
 
 interface AppState {
-  /** Every known person: the signed-in real user plus the demo NPC friends. */
+  /** Every known person: the signed-in real user plus their accepted real friends. */
   users: Record<string, UserProfile>;
   /** Whoever "I" currently am - everything else in the app is relative to this. Empty until syncRealUser runs. */
   activeUserId: string;
@@ -138,7 +138,7 @@ export const useAppStore = create<AppState>((set, get) => {
   }
 
   return {
-    users: Object.fromEntries(FRIENDS.map((u) => [u.id, u])),
+    users: {},
     activeUserId: '',
     groups: QUESTION_GROUPS,
     history: INITIAL_HISTORY,

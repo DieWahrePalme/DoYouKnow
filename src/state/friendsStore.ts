@@ -160,7 +160,6 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
 
   removeFriend: async (friendId) => {
     const myId = useAppStore.getState().activeUserId;
-    // No-ops harmlessly for the demo NPC friends, which have no backing row.
     await supabase
       .from('friendships')
       .delete()
