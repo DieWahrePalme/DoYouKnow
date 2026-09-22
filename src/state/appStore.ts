@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
 import { CATEGORIES, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS } from '@/data/mockData';
@@ -37,6 +38,10 @@ interface AppState {
   toggleFavorite: (friendId: string, groupId: string, questionId: string) => void;
   advanceTimeBy: (ms: number) => void;
   jumpToNextDay: () => void;
+  /** Drops the time jump and returns to real current time - clears the persisted offset too. */
+  resetTimeOffset: () => void;
+  /** Restores a time jump that survived a reload (see TIME_OFFSET_STORAGE_KEY). Call once on app start. */
+  hydrateTimeOffset: () => Promise<void>;
   checkDayRollover: () => void;
   /** Makes the real signed-in account "you" in the app - called once after login/signup. */
   syncRealUser: (profile: UserProfile) => void;
@@ -64,6 +69,22 @@ interface AppState {
 
 function dayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The time-jump test controls (+1h / +1 day / now) only ever lived in
+ * memory, so a page reload silently snapped back to real time - annoying
+ * for testing anything day-boundary related, since verifying persistence
+ * requires exactly the reload that used to undo the jump. Persisting the
+ * offset to AsyncStorage (device/browser-local, not shared with anyone
+ * else testing) makes the jump stick until explicitly reset.
+ */
+const TIME_OFFSET_STORAGE_KEY = 'dyk:timeOffsetMs';
+
+function persistTimeOffset(ms: number) {
+  void AsyncStorage.setItem(TIME_OFFSET_STORAGE_KEY, String(ms)).catch((err) =>
+    console.error('[appStore] failed to persist time offset:', err),
+  );
 }
 
 /** The app's current notion of "now" - always read through this, never `new Date()`/`Date.now()` directly. */
@@ -199,15 +220,41 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     advanceTimeBy: (ms) => {
-      set((state) => ({ timeOffsetMs: state.timeOffsetMs + ms }));
+      const next = get().timeOffsetMs + ms;
+      set({ timeOffsetMs: next });
+      persistTimeOffset(next);
       get().checkDayRollover();
     },
 
     jumpToNextDay: () => {
       const state = get();
       const delta = msUntilNextDay(getEffectiveNow(state)) + 1000;
-      set({ timeOffsetMs: state.timeOffsetMs + delta });
+      const next = state.timeOffsetMs + delta;
+      set({ timeOffsetMs: next });
+      persistTimeOffset(next);
       get().checkDayRollover();
+    },
+
+    resetTimeOffset: () => {
+      // Re-anchor the day-rollover bookkeeping to the real current day too -
+      // otherwise a jump forward (e.g. into tomorrow) leaves `lastProcessedDay`
+      // ahead of real "today", and the very next tick would see "today" as
+      // earlier than the last processed day and re-run rollover logic.
+      set({ timeOffsetMs: 0, lastProcessedDay: dayKey(new Date()), streakBumpedToday: {} });
+      persistTimeOffset(0);
+    },
+
+    hydrateTimeOffset: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(TIME_OFFSET_STORAGE_KEY);
+        const ms = stored ? Number(stored) : 0;
+        if (ms) {
+          set({ timeOffsetMs: ms });
+          get().checkDayRollover();
+        }
+      } catch (err) {
+        console.error('[appStore] failed to read persisted time offset:', err);
+      }
     },
 
     checkDayRollover: () => {

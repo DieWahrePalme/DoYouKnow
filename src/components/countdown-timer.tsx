@@ -19,6 +19,7 @@ export function CountdownTimer() {
   const timeOffsetMs = useAppStore((state) => state.timeOffsetMs);
   const advanceTimeBy = useAppStore((state) => state.advanceTimeBy);
   const jumpToNextDay = useAppStore((state) => state.jumpToNextDay);
+  const resetTimeOffset = useAppStore((state) => state.resetTimeOffset);
   const checkDayRollover = useAppStore((state) => state.checkDayRollover);
   // Starts `null` so the very first client render matches the static
   // export's server-prerendered markup (frozen at build time) instead of
@@ -54,6 +55,15 @@ export function CountdownTimer() {
           style={[styles.testButton, { borderColor: theme.textSecondary }]}>
           <ThemedText type="small">⏭ Tageswechsel</ThemedText>
         </Pressable>
+        {timeOffsetMs !== 0 ? (
+          <Pressable
+            onPress={resetTimeOffset}
+            style={[styles.testButton, { borderColor: theme.danger }]}>
+            <ThemedText type="small" style={{ color: theme.danger }}>
+              ↺ Jetzt
+            </ThemedText>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

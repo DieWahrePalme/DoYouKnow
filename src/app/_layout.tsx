@@ -4,6 +4,7 @@ import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Colors } from '@/constants/theme';
+import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
 
 export default function RootLayout() {
@@ -11,10 +12,12 @@ export default function RootLayout() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const status = useAuthStore((state) => state.status);
   const init = useAuthStore((state) => state.init);
+  const hydrateTimeOffset = useAppStore((state) => state.hydrateTimeOffset);
 
   useEffect(() => {
     init();
-  }, [init]);
+    void hydrateTimeOffset();
+  }, [init, hydrateTimeOffset]);
 
   if (status === 'loading') {
     return (
