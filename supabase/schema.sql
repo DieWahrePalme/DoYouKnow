@@ -181,3 +181,35 @@ alter table public.favorites enable row level security;
 drop policy if exists "manage only your own favorites" on public.favorites;
 create policy "manage only your own favorites" on public.favorites
   for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
+
+-- ---------------------------------------------------------------------------
+-- test_clock: a single shared row holding the "+1h / next day" test-time
+-- jump, so it applies to every signed-in account at once instead of just the
+-- browser that pressed the button - the daily group only rotates once per
+-- real day, so testing streaks/rollovers across two test accounts needs a
+-- clock they both actually see move.
+--
+-- SECURITY NOTE: any authenticated user can move time for every other
+-- account. That is the point while this is a small, trusted testing group -
+-- lock this down (or remove it) before real strangers can sign up.
+-- ---------------------------------------------------------------------------
+create table if not exists public.test_clock (
+  id smallint primary key default 1,
+  offset_ms bigint not null default 0,
+  updated_at timestamptz not null default now(),
+  check (id = 1)
+);
+
+insert into public.test_clock (id, offset_ms)
+values (1, 0)
+on conflict (id) do nothing;
+
+alter table public.test_clock enable row level security;
+
+drop policy if exists "anyone signed in can read the shared test clock" on public.test_clock;
+create policy "anyone signed in can read the shared test clock" on public.test_clock
+  for select to authenticated using (true);
+
+drop policy if exists "anyone signed in can move the shared test clock" on public.test_clock;
+create policy "anyone signed in can move the shared test clock" on public.test_clock
+  for update to authenticated using (true) with check (true);

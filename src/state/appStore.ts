@@ -25,8 +25,9 @@ interface AppState {
   /**
    * Manual offset from real wall-clock time, in ms - lets the day boundary
    * (and everything derived from it) be fast-forwarded for testing without
-   * waiting for real midnight. A real backend would derive "now" from its
-   * own clock/timezone instead of a client-side offset like this.
+   * waiting for real midnight. Shared across every signed-in account via
+   * Supabase's `test_clock` table (see loadGlobalTimeOffset) - a real
+   * production backend would never let clients move its clock like this.
    */
   timeOffsetMs: number;
   /** The last calendar day (UTC) the streak/rollover check has processed. */
@@ -38,10 +39,12 @@ interface AppState {
   toggleFavorite: (friendId: string, groupId: string, questionId: string) => void;
   advanceTimeBy: (ms: number) => void;
   jumpToNextDay: () => void;
-  /** Drops the time jump and returns to real current time - clears the persisted offset too. */
+  /** Drops the time jump and returns to real current time for everyone - clears the shared offset too. */
   resetTimeOffset: () => void;
-  /** Restores a time jump that survived a reload (see TIME_OFFSET_STORAGE_KEY). Call once on app start. */
+  /** Instant local cache so the UI doesn't flash real time before loadGlobalTimeOffset resolves. Call once on app start. */
   hydrateTimeOffset: () => Promise<void>;
+  /** Reads the shared test_clock row from Supabase - the actual source of truth for timeOffsetMs. Call on start and poll periodically so every account converges on the same jumped time. */
+  loadGlobalTimeOffset: () => Promise<void>;
   checkDayRollover: () => void;
   /** Makes the real signed-in account "you" in the app - called once after login/signup. */
   syncRealUser: (profile: UserProfile) => void;
@@ -72,19 +75,30 @@ function dayKey(date: Date): string {
 }
 
 /**
- * The time-jump test controls (+1h / +1 day / now) only ever lived in
- * memory, so a page reload silently snapped back to real time - annoying
- * for testing anything day-boundary related, since verifying persistence
- * requires exactly the reload that used to undo the jump. Persisting the
- * offset to AsyncStorage (device/browser-local, not shared with anyone
- * else testing) makes the jump stick until explicitly reset.
+ * The time-jump test controls (+1h / +1 day / now) are backed by a single
+ * shared row in Supabase's `test_clock` table (see supabase/schema.sql) -
+ * every signed-in account reads and can move the same offset, since the
+ * daily group only rotates once per real day and testing streaks/rollovers
+ * needs at least two accounts to see the same "day" move together.
+ * AsyncStorage is only an instant-paint cache so the UI doesn't flash back
+ * to real time for a moment before the Supabase row loads; Supabase is the
+ * source of truth and always wins once it responds.
  */
-const TIME_OFFSET_STORAGE_KEY = 'dyk:timeOffsetMs';
+const TIME_OFFSET_CACHE_KEY = 'dyk:timeOffsetMs';
 
-function persistTimeOffset(ms: number) {
-  void AsyncStorage.setItem(TIME_OFFSET_STORAGE_KEY, String(ms)).catch((err) =>
-    console.error('[appStore] failed to persist time offset:', err),
+function cacheTimeOffsetLocally(ms: number) {
+  void AsyncStorage.setItem(TIME_OFFSET_CACHE_KEY, String(ms)).catch((err) =>
+    console.error('[appStore] failed to cache time offset locally:', err),
   );
+}
+
+function pushGlobalTimeOffset(ms: number) {
+  if (!isSupabaseConfigured) return;
+  void supabase
+    .from('test_clock')
+    .update({ offset_ms: ms, updated_at: new Date().toISOString() })
+    .eq('id', 1)
+    .then(({ error }) => logSupabaseError('test_clock update', error));
 }
 
 /** The app's current notion of "now" - always read through this, never `new Date()`/`Date.now()` directly. */
@@ -222,7 +236,8 @@ export const useAppStore = create<AppState>((set, get) => {
     advanceTimeBy: (ms) => {
       const next = get().timeOffsetMs + ms;
       set({ timeOffsetMs: next });
-      persistTimeOffset(next);
+      cacheTimeOffsetLocally(next);
+      pushGlobalTimeOffset(next);
       get().checkDayRollover();
     },
 
@@ -231,7 +246,8 @@ export const useAppStore = create<AppState>((set, get) => {
       const delta = msUntilNextDay(getEffectiveNow(state)) + 1000;
       const next = state.timeOffsetMs + delta;
       set({ timeOffsetMs: next });
-      persistTimeOffset(next);
+      cacheTimeOffsetLocally(next);
+      pushGlobalTimeOffset(next);
       get().checkDayRollover();
     },
 
@@ -241,20 +257,34 @@ export const useAppStore = create<AppState>((set, get) => {
       // ahead of real "today", and the very next tick would see "today" as
       // earlier than the last processed day and re-run rollover logic.
       set({ timeOffsetMs: 0, lastProcessedDay: dayKey(new Date()), streakBumpedToday: {} });
-      persistTimeOffset(0);
+      cacheTimeOffsetLocally(0);
+      pushGlobalTimeOffset(0);
     },
 
     hydrateTimeOffset: async () => {
       try {
-        const stored = await AsyncStorage.getItem(TIME_OFFSET_STORAGE_KEY);
-        const ms = stored ? Number(stored) : 0;
+        const cached = await AsyncStorage.getItem(TIME_OFFSET_CACHE_KEY);
+        const ms = cached ? Number(cached) : 0;
         if (ms) {
           set({ timeOffsetMs: ms });
           get().checkDayRollover();
         }
       } catch (err) {
-        console.error('[appStore] failed to read persisted time offset:', err);
+        console.error('[appStore] failed to read cached time offset:', err);
       }
+    },
+
+    loadGlobalTimeOffset: async () => {
+      if (!isSupabaseConfigured) return;
+      const { data, error } = await supabase.from('test_clock').select('offset_ms').eq('id', 1).maybeSingle();
+      logSupabaseError('test_clock load', error);
+      if (!data) return;
+      const ms = Number(data.offset_ms) || 0;
+      if (ms !== get().timeOffsetMs) {
+        set({ timeOffsetMs: ms });
+        get().checkDayRollover();
+      }
+      cacheTimeOffsetLocally(ms);
     },
 
     checkDayRollover: () => {
