@@ -108,6 +108,17 @@ function statusOf(guess: AnswerMap | undefined, truth: AnswerMap | undefined): R
   return truth ? 'resolved' : 'waiting_for_truth';
 }
 
+/**
+ * Every write in this store used to be fire-and-forget (`void supabase...`),
+ * so a failed insert/update (RLS rejection, network error, bad payload)
+ * looked identical to a successful one until the next reload wiped the
+ * "saved" data. Route every write through this so failures are at least
+ * visible in the console instead of silently vanishing.
+ */
+function logSupabaseError(context: string, error: { message: string } | null) {
+  if (error) console.error(`[supabase] ${context} failed:`, error.message);
+}
+
 export const useAppStore = create<AppState>((set, get) => {
   function resolvedBetween(userAId: string, userBId: string, groupId: string): boolean {
     const state = get();
@@ -125,7 +136,10 @@ export const useAppStore = create<AppState>((set, get) => {
   function pushStreak(userAId: string, userBId: string, streak: number, bumpedOn: string) {
     if (!isSupabaseConfigured) return;
     const [user_a, user_b] = [userAId, userBId].sort();
-    void supabase.from('streaks').upsert({ user_a, user_b, streak, bumped_on: bumpedOn }, { onConflict: 'user_a,user_b' });
+    void supabase
+      .from('streaks')
+      .upsert({ user_a, user_b, streak, bumped_on: bumpedOn }, { onConflict: 'user_a,user_b' })
+      .then(({ error }) => logSupabaseError('streak upsert', error));
   }
 
   function bumpStreakIfResolved(userAId: string, userBId: string) {
@@ -162,14 +176,26 @@ export const useAppStore = create<AppState>((set, get) => {
         users: { ...state.users, [state.activeUserId]: { ...state.users[state.activeUserId], name } },
       }));
       const userId = get().activeUserId;
-      if (isSupabaseConfigured) void supabase.from('profiles').update({ username: name }).eq('id', userId);
+      if (isSupabaseConfigured) {
+        void supabase
+          .from('profiles')
+          .update({ username: name })
+          .eq('id', userId)
+          .then(({ error }) => logSupabaseError('profile name update', error));
+      }
     },
     updateProfileAvatar: (avatarEmoji) => {
       set((state) => ({
         users: { ...state.users, [state.activeUserId]: { ...state.users[state.activeUserId], avatarEmoji } },
       }));
       const userId = get().activeUserId;
-      if (isSupabaseConfigured) void supabase.from('profiles').update({ avatar_emoji: avatarEmoji }).eq('id', userId);
+      if (isSupabaseConfigured) {
+        void supabase
+          .from('profiles')
+          .update({ avatar_emoji: avatarEmoji })
+          .eq('id', userId)
+          .then(({ error }) => logSupabaseError('profile avatar update', error));
+      }
     },
 
     advanceTimeBy: (ms) => {
@@ -226,15 +252,18 @@ export const useAppStore = create<AppState>((set, get) => {
       });
 
       if (isSupabaseConfigured && groupQuestions.length > 0) {
-        void supabase.from('answers').insert(
-          groupQuestions.map((question) => ({
-            user_id: subjectId,
-            group_id: groupId,
-            question_id: question.id,
-            value: answers[question.id],
-            answered_at: at,
-          })),
-        );
+        void supabase
+          .from('answers')
+          .insert(
+            groupQuestions.map((question) => ({
+              user_id: subjectId,
+              group_id: groupId,
+              question_id: question.id,
+              value: answers[question.id],
+              answered_at: at,
+            })),
+          )
+          .then(({ error }) => logSupabaseError('answers insert', error));
       }
 
       // Answering can unlock any pending guess anyone else already made about this subject.
@@ -257,17 +286,20 @@ export const useAppStore = create<AppState>((set, get) => {
 
       if (isSupabaseConfigured) {
         const at = getEffectiveNow(get()).toISOString();
-        void supabase.from('guesses').upsert(
-          Object.entries(answers).map(([questionId, value]) => ({
-            guesser_id: guesserId,
-            subject_id: subjectId,
-            group_id: groupId,
-            question_id: questionId,
-            value,
-            updated_at: at,
-          })),
-          { onConflict: 'guesser_id,subject_id,group_id,question_id' },
-        );
+        void supabase
+          .from('guesses')
+          .upsert(
+            Object.entries(answers).map(([questionId, value]) => ({
+              guesser_id: guesserId,
+              subject_id: subjectId,
+              group_id: groupId,
+              question_id: questionId,
+              value,
+              updated_at: at,
+            })),
+            { onConflict: 'guesser_id,subject_id,group_id,question_id' },
+          )
+          .then(({ error }) => logSupabaseError('guesses upsert', error));
       }
 
       bumpStreakIfResolved(guesserId, subjectId);
@@ -323,6 +355,9 @@ export const useAppStore = create<AppState>((set, get) => {
           .or(`guesser_id.eq.${myId},subject_id.eq.${myId}`),
         supabase.from('streaks').select('user_a, user_b, streak').or(`user_a.eq.${myId},user_b.eq.${myId}`),
       ]);
+      logSupabaseError('answers load', answersRes.error);
+      logSupabaseError('guesses load', guessesRes.error);
+      logSupabaseError('streaks load', streaksRes.error);
 
       const cloudHistory: Record<string, Record<string, HistoryMap>> = {};
       for (const row of answersRes.data ?? []) {
