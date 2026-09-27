@@ -8,6 +8,7 @@
     "scheme": "doyouknow",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "app.doyouknow.ios",
       "icon": "./assets/expo.icon"
     },
     "android": {
@@ -37,6 +38,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4e9347fb-a13c-42ff-abc2-54418bf16f24"
+      }
+    },
+    "owner": "diewahrepalme"
   }
 }

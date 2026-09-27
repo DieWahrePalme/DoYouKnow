@@ -1,4 +1,5 @@
 import 'react-native-url-polyfill/auto';
+import '@/lib/webCryptoShim';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
@@ -124,10 +125,13 @@ export const supabase = createClient(supabaseUrl || 'https://placeholder.supabas
     storage: authStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
-    // Native only: confirmation/reset deep links are exchanged by hand in
-    // authStore.handleAuthLink - see src/lib/authLinking.ts for why PKCE.
-    // Web keeps the implicit default so its email links behave as before.
+    // Web: let auth-js pick up the #access_token a confirmation/reset link
+    // lands with (it was false everywhere before, so a web password reset
+    // opened the app signed out). A reset link fires PASSWORD_RECOVERY,
+    // which the root layout routes to /settings/password.
+    // Native: deep links are exchanged by hand in authStore.handleAuthLink
+    // with the PKCE flow - see src/lib/authLinking.ts for why.
+    detectSessionInUrl: Platform.OS === 'web',
     flowType: Platform.OS === 'web' ? 'implicit' : 'pkce',
   },
 });
