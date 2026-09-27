@@ -1,14 +1,14 @@
 # Development Workflow
 
 > This file extends [common/git-workflow.md](./git-workflow.md) with the full feature development process that happens before git operations.
-> See `.claude/rules/ecc/README.md` — this session doesn't have `gh` CLI or Exa configured; use `mcp__github__search_code` and this session's `WebSearch`/`WebFetch` tools where the steps below say `gh search` / Exa.
+> See `.claude/rules/ecc/README.md` — `gh` CLI is available locally; Exa/Context7 are not configured, use `WebSearch`/`WebFetch` instead.
 
 The Feature Implementation Workflow describes the development pipeline: research, planning, TDD, code review, and then committing to git.
 
 ## Feature Implementation Workflow
 
 0. **Research & Reuse** _(mandatory before any new implementation)_
-   - **Code search first:** search for existing implementations, templates, and patterns before writing anything new (`mcp__github__search_code` in this environment, `gh search code` locally).
+   - **Code search first:** search for existing implementations, templates, and patterns before writing anything new (`gh search code`).
    - **Library docs second:** use primary vendor docs (or Context7 if configured) to confirm API behavior, package usage, and version-specific details before implementing. For this project specifically: Expo's versioned docs, per `AGENTS.md`.
    - **Web search only when the first two are insufficient:** use `WebSearch`/`WebFetch` for broader research after code search and primary docs.
    - **Check package registries:** search npm before writing utility code. Prefer battle-tested libraries over hand-rolled solutions.

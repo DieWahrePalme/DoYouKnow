@@ -1,53 +1,64 @@
 # Do You Know?
 
-Social-Guessing-Game: Jeden Tag beantwortest du 5 Fragen über dich selbst.
-Deine Freunde raten per Swipe, wie du geantwortet hast – und du rätst
-umgekehrt über sie. Sobald beide Seiten (deine Wahrheit + die Vermutung)
-vorliegen, gibt's die sofortige Auflösung. Passiert das täglich, wächst der
-Flame-Streak der Freundschaft.
+Social-Guessing-Game: Jeden Tag bekommst du ein eigenes Thema mit 5 Fragen über
+dich selbst. Deine Freunde raten per Swipe, wie du geantwortet hast – und du
+rätst umgekehrt über sie. Sobald beide Seiten (deine Wahrheit + die Vermutung)
+vorliegen, gibt's die Auflösung. Spielt ihr beide jeden Tag, wächst der
+Flame-Streak eurer Freundschaft.
 
-Aktueller Stand: **MVP mit lokalem Mock-State** (kein Backend, kein Login).
-Alle Daten leben nur im Arbeitsspeicher der App und sind nach einem Neustart
-wieder auf dem Ausgangszustand – ideal, um den Kern-Loop zu testen, bevor
-Supabase (Auth, echte Freunde, Realtime) angebunden wird.
+Produktvision, Zielgruppe und MVP-Umfang: **[docs/PRD.md](docs/PRD.md)**.
 
-## Starten (Browser)
+Aktueller Stand: **MVP-Prototyp mit Supabase-Backend** (Login, echte Freunde,
+Datenbank mit Row Level Security). Läuft als Web-App auf GitHub Pages; die
+iOS-App ist in Arbeit.
+
+## Setup
 
 ```bash
 npm install
-npm run web
+cp .env.example .env   # Supabase-URL + anon key eintragen (Dashboard → Settings → API)
 ```
 
-Öffnet die App unter `http://localhost:8081`.
+Die Datenbank-Struktur liegt in `supabase/schema.sql`.
 
-## Starten (Handy, ohne Mac/PC-Build)
+## Starten
 
 ```bash
-npx expo start
+npm run web       # Browser, http://localhost:8081
+npm run ios       # iOS-Simulator (Xcode nötig)
+npx expo start    # QR-Code mit Expo Go auf dem Handy scannen
 ```
-
-QR-Code mit der [Expo Go](https://expo.dev/go) App auf dem Handy scannen –
-Live-Reload inklusive.
 
 ## Struktur
 
-- `src/app/index.tsx` – Startbildschirm: "Du" oben angepinnt + Freundesliste
-  mit Flame-Streak und Sanduhr (⏳ = wartet auf eine Auflösung).
-- `src/app/me.tsx` – deine eigenen 5 Fragen des Tages (die "Wahrheit").
-- `src/app/friend/[id].tsx` – Swipe-Deck, um die 5 Fragen über einen Freund
-  zu raten, danach Auflösung oder Warte-Zustand.
+- `src/app/(auth)/` – Willkommen, Login, Registrierung, Passwort vergessen.
+- `src/app/(tabs)/` – Haupt-Tabs: Heute (`index.tsx`), Match, Favoriten, Profil.
+- `src/app/friend/[id]/` – Swipe-Deck, um die Fragen über einen Freund zu
+  raten, danach Auflösung oder Warte-Zustand.
+- `src/app/match/[friendId]/` – Gemeinsamkeiten mit einem Freund.
+- `src/app/friends.tsx`, `add-friend.tsx`, `friend-requests.tsx` –
+  Freundesliste und Anfragen per Benutzername.
+- `src/app/settings/` – Profil-Einstellungen (Avatar, Benutzername, Passwort,
+  Privatsphäre).
 - `src/components/swipe-card.tsx` / `swipe-deck.tsx` – Gesten-Mechanik
   (links = Nein, rechts = Ja, hoch = eher Ja, runter = eher Nein) inklusive
   Tap-Buttons als Fallback.
-- `src/state/appStore.ts` – Zustand-Store mit dem gesamten Tages-Zustand
-  (Wahrheiten, Vermutungen, Streak-Logik).
-- `src/data/mockData.ts` – Platzhalter-Freunde, Themen-Decks und
-  Beispiel-Antworten zum Ausprobieren.
+- `src/state/` – Zustand-Stores: `authStore` (Login/Profil), `friendsStore`
+  (Freundschaften), `appStore` (Tages-Zustand, Streak-Logik).
+- `src/lib/supabase.ts` – Supabase-Client inkl. sicherem Session-Speicher auf
+  dem Handy.
+- `src/data/mockData.ts` – Fragen-Decks und Beispieldaten.
+
+## Deployment
+
+Jeder Push auf den Haupt-Branch baut die Web-Version und veröffentlicht sie
+auf GitHub Pages (`.github/workflows/deploy-pages.yml`). Die Supabase-Keys
+kommen dort aus den GitHub-Secrets.
 
 ## Nächste Schritte
 
-- Supabase anbinden (Auth, echte Freundschaften, tägliche Deck-Rotation,
-  Realtime-Auflösung statt Mock-State).
-- Push-Benachrichtigung, sobald eine Auflösung freigeschaltet wird.
-- App-Store-Release über [EAS Build](https://docs.expo.dev/build/introduction/)
-  (funktioniert cloud-seitig, ganz ohne Mac).
+Siehe [docs/PRD.md](docs/PRD.md) → "MVP scope". Kurzfassung:
+
+- iOS-App über TestFlight an Freunde verteilen.
+- Push-Benachrichtigungen (Auflösung fertig, Streak läuft um 22:00 ab).
+- Melden/Blockieren und Account-Löschung (App-Store-Pflicht).
