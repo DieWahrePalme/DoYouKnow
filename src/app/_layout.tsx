@@ -1,6 +1,7 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { useLinkingURL } from 'expo-linking';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Platform, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Colors } from '@/constants/theme';
@@ -17,11 +18,29 @@ export default function RootLayout() {
   const init = useAuthStore((state) => state.init);
   const hydrateTimeOffset = useAppStore((state) => state.hydrateTimeOffset);
   const loadGlobalTimeOffset = useAppStore((state) => state.loadGlobalTimeOffset);
+  const handleAuthLink = useAuthStore((state) => state.handleAuthLink);
+  const pendingPasswordRecovery = useAuthStore((state) => state.pendingPasswordRecovery);
+  const clearPendingPasswordRecovery = useAuthStore((state) => state.clearPendingPasswordRecovery);
+  const linkingUrl = useLinkingURL();
 
   useEffect(() => {
     init();
     void hydrateTimeOffset();
   }, [init, hydrateTimeOffset]);
+
+  // On native, confirmation/reset emails open the app via doyouknow:// (or
+  // exp:// in Expo Go) with the session tokens in the URL - covers both a
+  // cold start from the link and the app already running in the background.
+  useEffect(() => {
+    if (Platform.OS === 'web' || !linkingUrl) return;
+    void handleAuthLink(linkingUrl);
+  }, [linkingUrl, handleAuthLink]);
+
+  useEffect(() => {
+    if (status !== 'signedIn' || !pendingPasswordRecovery) return;
+    clearPendingPasswordRecovery();
+    router.push('/settings/password');
+  }, [status, pendingPasswordRecovery, clearPendingPasswordRecovery]);
 
   // The local cache above only avoids a flash of real time on startup - once
   // signed in, the shared Supabase row is authoritative, and polling here

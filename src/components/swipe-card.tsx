@@ -54,7 +54,11 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id]);
 
+  // Runs on the UI thread when called from the pan gesture's onEnd, so it
+  // must be a worklet - a plain JS function there crashes the app natively
+  // on iOS/Android (web runs gestures on the JS thread and never noticed).
   function finish(value: AnswerValue, exitX: number, exitY: number, velocityX = 0, velocityY = 0) {
+    'worklet';
     const distance = Math.hypot(exitX - translateX.value, exitY - translateY.value);
     const speed = Math.max(Math.hypot(velocityX, velocityY), 900);
     const duration = Math.min(420, Math.max(180, (distance / speed) * 1000));
@@ -132,7 +136,10 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
 
   const gesture = Gesture.Race(pan, doubleTap);
 
-  const dragMagnitude = (tx: number, ty: number) => Math.min(Math.hypot(tx, ty) / 220, 1);
+  const dragMagnitude = (tx: number, ty: number) => {
+    'worklet';
+    return Math.min(Math.hypot(tx, ty) / 220, 1);
+  };
 
   const cardStyle = useAnimatedStyle(() => {
     const drag = dragMagnitude(translateX.value, translateY.value);

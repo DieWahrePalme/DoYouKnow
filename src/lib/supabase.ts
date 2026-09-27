@@ -35,12 +35,34 @@ const noopStorage = {
  * exceeds. The standard workaround (see Supabase's Expo guide): encrypt the
  * session with a random AES key, store the small key in SecureStore and the
  * (unbounded-size) ciphertext in AsyncStorage.
+ *
+ * Hardening on top of the guide's version:
+ * - aes-js's utf8 helpers mangle 4-byte characters, so the session's
+ *   avatar_emoji (e.g. 🙂) came back as broken JSON - Supabase then quietly
+ *   treated the user as signed out, the profile query ran anonymous, and RLS
+ *   hid the user's own row. The value is percent-encoded to pure ASCII
+ *   before encryption, which aes-js round-trips losslessly.
+ * - Every write picks a fresh key, so two overlapping writes could leave key
+ *   A next to ciphertext B. All operations run one at a time via `queue`.
+ * - AES-CTR has no integrity check, so a mismatched or outdated entry
+ *   decrypts to garbage instead of failing. A known prefix makes that
+ *   detectable; a bad entry is dropped, which just means signing in again.
  */
+const INTEGRITY_PREFIX = 'dyk2:';
+
 class LargeSecureStore {
+  private queue: Promise<unknown> = Promise.resolve();
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(operation);
+    this.queue = result.catch(() => undefined);
+    return result;
+  }
+
   private async encrypt(key: string, value: string): Promise<string> {
     const encryptionKey = Crypto.getRandomBytes(256 / 8);
     const cipher = new aesjs.ModeOfOperation.ctr(encryptionKey, new aesjs.Counter(1));
-    const encryptedBytes = cipher.encrypt(aesjs.utils.utf8.toBytes(value));
+    const encryptedBytes = cipher.encrypt(aesjs.utils.utf8.toBytes(INTEGRITY_PREFIX + encodeURIComponent(value)));
 
     await SecureStore.setItemAsync(key, aesjs.utils.hex.fromBytes(encryptionKey));
 
@@ -54,23 +76,39 @@ class LargeSecureStore {
     const cipher = new aesjs.ModeOfOperation.ctr(aesjs.utils.hex.toBytes(encryptionKeyHex), new aesjs.Counter(1));
     const decryptedBytes = cipher.decrypt(aesjs.utils.hex.toBytes(value));
 
-    return aesjs.utils.utf8.fromBytes(decryptedBytes);
+    try {
+      const decrypted = aesjs.utils.utf8.fromBytes(decryptedBytes);
+      if (!decrypted.startsWith(INTEGRITY_PREFIX)) return null;
+      return decodeURIComponent(decrypted.slice(INTEGRITY_PREFIX.length));
+    } catch {
+      return null;
+    }
   }
 
-  async getItem(key: string): Promise<string | null> {
-    const encrypted = await AsyncStorage.getItem(key);
-    if (!encrypted) return null;
-    return this.decrypt(key, encrypted);
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    const encrypted = await this.encrypt(key, value);
-    await AsyncStorage.setItem(key, encrypted);
-  }
-
-  async removeItem(key: string): Promise<void> {
+  private async removeBoth(key: string): Promise<void> {
     await AsyncStorage.removeItem(key);
     await SecureStore.deleteItemAsync(key);
+  }
+
+  getItem(key: string): Promise<string | null> {
+    return this.enqueue(async () => {
+      const encrypted = await AsyncStorage.getItem(key);
+      if (!encrypted) return null;
+      const decrypted = await this.decrypt(key, encrypted);
+      if (decrypted === null) await this.removeBoth(key);
+      return decrypted;
+    });
+  }
+
+  setItem(key: string, value: string): Promise<void> {
+    return this.enqueue(async () => {
+      const encrypted = await this.encrypt(key, value);
+      await AsyncStorage.setItem(key, encrypted);
+    });
+  }
+
+  removeItem(key: string): Promise<void> {
+    return this.enqueue(() => this.removeBoth(key));
   }
 }
 
@@ -87,5 +125,9 @@ export const supabase = createClient(supabaseUrl || 'https://placeholder.supabas
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Native only: confirmation/reset deep links are exchanged by hand in
+    // authStore.handleAuthLink - see src/lib/authLinking.ts for why PKCE.
+    // Web keeps the implicit default so its email links behave as before.
+    flowType: Platform.OS === 'web' ? 'implicit' : 'pkce',
   },
 });
