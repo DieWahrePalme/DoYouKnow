@@ -35,9 +35,8 @@ project. Read this before treating any of the below as a hard rule here:
 
 2. **Commit attribution.** `common/git-workflow.md` mentions ECC-managed
    installs disabling the `Co-Authored-By` trailer by default. **Ignore that
-   for this project** — this session has a standing instruction to always
-   append a `Co-Authored-By: Claude Sonnet 5 <...>` + `Claude-Session:` footer
-   to commits it creates. That instruction wins.
+   for this project** — follow the commit/PR attribution lines the Claude
+   Code session itself provides (`Co-Authored-By:` etc.). That wins.
 
 3. **No custom backend.** This is Expo/React Native + Supabase with zero
    custom API server. Anywhere a rule says "rate limiting on all endpoints,"
@@ -55,17 +54,17 @@ project. Read this before treating any of the below as a hard rule here:
    per TDD stage" must NOT be followed here (conflicts with this session's
    "never commit unless asked" rule).
 
-5. **Web-only today, not yet native.** `react-native/production-readiness.md`
-   assumes EAS Build/Update, Sentry crash reporting, and physical-device
-   testing. This project currently ships only as a static web export to
-   GitHub Pages (see `.github/workflows/deploy-pages.yml`) — no EAS project,
-   no native builds, no Sentry configured. Treat that section as the target
-   state for if/when this becomes a real native app, not current process.
+5. **Web live, iOS in progress.** The web version ships as a static export to
+   GitHub Pages (`.github/workflows/deploy-pages.yml`). The native iOS app is
+   being built (target: TestFlight for the friends MVP — see `docs/PRD.md`).
+   `react-native/production-readiness.md` (EAS Build/Update, Sentry,
+   physical-device testing) is the target process for that; EAS and Sentry
+   are not configured yet.
 
 6. **Tooling in `common/development-workflow.md`.** It recommends `gh search
-   code`, Context7, and Exa for research. This session doesn't have `gh` CLI
-   or Exa configured — use `mcp__github__search_code` and this session's
-   `WebSearch`/`WebFetch` tools (via `ToolSearch`) instead where equivalent.
+   code`, Context7, and Exa for research. The local Mac has the `gh` CLI
+   (logged in); Context7 and Exa are not configured — use `WebSearch`/
+   `WebFetch` instead where equivalent.
 
 Everything else — coding style, immutability, Zod validation, RN
 accessibility, performance, the New Architecture / SDK 55+ notes, the

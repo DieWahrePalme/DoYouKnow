@@ -1,6 +1,6 @@
 # Git Workflow
 
-> **Project override:** ignore the attribution note below. This session always appends a `Co-Authored-By: Claude Sonnet 5 <...>` + `Claude-Session:` footer to commits and PR descriptions it creates — that standing instruction takes precedence. Also: never commit unless the user has explicitly asked for a commit in this turn (see `.claude/rules/ecc/README.md`, point 4).
+> **Project override:** ignore the attribution note below. Use the commit/PR attribution lines the Claude Code session itself provides — that takes precedence. Also: never commit unless the user has explicitly asked for a commit in this turn (see `.claude/rules/ecc/README.md`, point 4).
 
 ## Commit Message Format
 ```
