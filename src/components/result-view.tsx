@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { ANSWER_LABELS, AnswerMap, Question } from '@/types';
+import { formatPoints, guessOutcome, OUTCOME_ICONS, OUTCOME_POINTS } from '@/utils/guessScore';
 
 interface ResultViewProps {
   subjectName: string;
@@ -28,13 +29,14 @@ export function ResultView({ subjectName, questions, guesses, truth }: ResultVie
     );
   }
 
-  const correctCount = questions.filter((q) => guesses[q.id] === truth[q.id]).length;
+  // Exact answer = 1 point, right direction (Ja/Eher ja, Nein/Eher nein) = half a point.
+  const points = questions.reduce((sum, q) => sum + OUTCOME_POINTS[guessOutcome(guesses[q.id], truth[q.id])], 0);
 
   return (
     <View style={styles.resultWrap}>
       <ThemedView type="backgroundElement" style={styles.scoreCard}>
         <ThemedText type="title" style={styles.centerText}>
-          {correctCount} / {questions.length}
+          {formatPoints(points)} / {questions.length}
         </ThemedText>
         <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
           richtig geraten über {subjectName}
@@ -42,10 +44,10 @@ export function ResultView({ subjectName, questions, guesses, truth }: ResultVie
       </ThemedView>
 
       {questions.map((question) => {
-        const isCorrect = guesses[question.id] === truth[question.id];
+        const outcome = guessOutcome(guesses[question.id], truth[question.id]);
         return (
           <View key={question.id} style={styles.row}>
-            <ThemedText style={styles.rowIcon}>{isCorrect ? '✅' : '❌'}</ThemedText>
+            <ThemedText style={styles.rowIcon}>{OUTCOME_ICONS[outcome]}</ThemedText>
             <View style={styles.rowText}>
               <ThemedText type="small">{question.text}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
@@ -69,6 +71,7 @@ const styles = StyleSheet.create({
   },
   hourglassBig: {
     fontSize: 40,
+    lineHeight: 50,
   },
   centerText: {
     textAlign: 'center',
