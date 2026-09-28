@@ -141,6 +141,7 @@ const styles = StyleSheet.create({
   },
   confirmEmoji: {
     fontSize: 56,
+    lineHeight: 70,
     textAlign: 'center',
   },
   scroll: {

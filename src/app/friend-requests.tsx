@@ -112,6 +112,7 @@ const styles = StyleSheet.create({
   },
   rowEmoji: {
     fontSize: 26,
+    lineHeight: 32,
   },
   rowName: {
     flex: 1,

@@ -1,10 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
-import { CATEGORIES, INITIAL_GUESSES, INITIAL_HISTORY, INITIAL_STREAKS, QUESTION_GROUPS } from '@/data/mockData';
+import { CATEGORIES, INITIAL_GUESSES, INITIAL_HISTORY, QUESTION_GROUPS } from '@/data/mockData';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { AnswerMap, AnswerValue, Category, FavoriteItem, HistoryMap, QuestionGroup, UserProfile } from '@/types';
-import { pairKey } from '@/utils/pairKey';
+import { berlinDayKey, msUntilNextBerlinDay } from '@/utils/berlinDay';
+import { groupIdForDay } from '@/utils/dailyCard';
+import { computeStreak, GuessDay, guessDayKey } from '@/utils/streak';
 
 export type ResolutionStatus = 'not_guessed' | 'waiting_for_truth' | 'resolved';
 
@@ -18,33 +19,29 @@ interface AppState {
   history: Record<string, Record<string, HistoryMap>>;
   /** guesserId -> subjectId -> groupId -> the guesser's guess about that subject. */
   guesses: Record<string, Record<string, Record<string, AnswerMap>>>;
-  /** pairKey(a, b) -> streak between those two people. */
-  streaks: Record<string, number>;
-  streakBumpedToday: Record<string, boolean>;
-  favorites: FavoriteItem[];
   /**
-   * Manual offset from real wall-clock time, in ms - lets the day boundary
-   * (and everything derived from it) be fast-forwarded for testing without
-   * waiting for real midnight. Shared across every signed-in account via
-   * Supabase's `test_clock` table (see loadGlobalTimeOffset) - a real
-   * production backend would never let clients move its clock like this.
+   * guessDayKey(guesser, subject, day) -> card + time: an append-only log of
+   * which friend's card someone guessed on which Berlin day. `guesses`
+   * above is overwritten per group, so it can't say *when* - this can, and
+   * streaks are computed from it (see src/utils/streak.ts).
    */
-  timeOffsetMs: number;
-  /** The last calendar day (UTC) the streak/rollover check has processed. */
-  lastProcessedDay: string;
+  guessDays: Record<string, GuessDay>;
+  favorites: FavoriteItem[];
+  /** The current Berlin day ('YYYY-MM-DD') - streaks are computed relative to it. */
+  today: string;
   updateProfileName: (name: string) => void;
   updateProfileAvatar: (avatarEmoji: string) => void;
   submitSelfAnswers: (subjectId: string, groupId: string, answers: AnswerMap) => void;
   submitGuess: (subjectId: string, groupId: string, answers: AnswerMap) => void;
   toggleFavorite: (friendId: string, groupId: string, questionId: string) => void;
-  advanceTimeBy: (ms: number) => void;
-  jumpToNextDay: () => void;
-  /** Drops the time jump and returns to real current time for everyone - clears the shared offset too. */
-  resetTimeOffset: () => void;
-  /** Instant local cache so the UI doesn't flash real time before loadGlobalTimeOffset resolves. Call once on app start. */
-  hydrateTimeOffset: () => Promise<void>;
-  /** Reads the shared test_clock row from Supabase - the actual source of truth for timeOffsetMs. Call on start and poll periodically so every account converges on the same jumped time. */
-  loadGlobalTimeOffset: () => Promise<void>;
+  /**
+   * Test helper: deletes my answers to today's card (all of them, so the
+   * card is open again) and every guess I made today, locally and in
+   * Supabase - so a round with friends can be replayed. Resolves with a
+   * user-facing error message, or null on success.
+   */
+  resetToday: () => Promise<string | null>;
+  /** Moves `today` forward once the Berlin day changes. Cheap - safe to call every second. */
   checkDayRollover: () => void;
   /** Makes the real signed-in account "you" in the app - called once after login/signup. */
   syncRealUser: (profile: UserProfile) => void;
@@ -53,7 +50,7 @@ interface AppState {
   /** Drops a friend from the local roster - called after the backing friendship row (if any) is deleted. */
   removeFriendFromUsers: (friendId: string) => void;
   /**
-   * Pulls answers/guesses/streaks involving the active user and everyone
+   * Pulls answers/guesses/guess days involving the active user and everyone
    * currently in `users` from Supabase into local state - without this,
    * a page reload wiped everything back to empty because those maps only
    * ever lived in memory. Safe to call repeatedly (e.g. whenever the
@@ -62,7 +59,7 @@ interface AppState {
   loadCloudData: () => Promise<void>;
   /**
    * Clears everything tied to the signed-in identity - users, history,
-   * guesses, streaks, favorites. Call this on sign-out; without it, signing
+   * guesses, guess days, favorites. Call this on sign-out; without it, signing
    * out and signing into a *different* account in the same browser tab left
    * the previous account's profile sitting in `users`, where it showed up
    * as a phantom "friend" for whoever signed in next.
@@ -70,59 +67,14 @@ interface AppState {
   resetForSignOut: () => void;
 }
 
-function dayKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-/**
- * The time-jump test controls (+1h / +1 day / now) are backed by a single
- * shared row in Supabase's `test_clock` table (see supabase/schema.sql) -
- * every signed-in account reads and can move the same offset, since the
- * daily group only rotates once per real day and testing streaks/rollovers
- * needs at least two accounts to see the same "day" move together.
- * AsyncStorage is only an instant-paint cache so the UI doesn't flash back
- * to real time for a moment before the Supabase row loads; Supabase is the
- * source of truth and always wins once it responds.
- */
-const TIME_OFFSET_CACHE_KEY = 'dyk:timeOffsetMs';
-
-function cacheTimeOffsetLocally(ms: number) {
-  void AsyncStorage.setItem(TIME_OFFSET_CACHE_KEY, String(ms)).catch((err) =>
-    console.error('[appStore] failed to cache time offset locally:', err),
-  );
-}
-
-function pushGlobalTimeOffset(ms: number) {
-  if (!isSupabaseConfigured) return;
-  void supabase
-    .from('test_clock')
-    .update({ offset_ms: ms, updated_at: new Date().toISOString() })
-    .eq('id', 1)
-    .then(({ error }) => logSupabaseError('test_clock update', error));
-}
-
-/** The app's current notion of "now" - always read through this, never `new Date()`/`Date.now()` directly. */
-export function getEffectiveNow(state: AppState): Date {
-  return new Date(Date.now() + state.timeOffsetMs);
-}
-
+/** Time left in the current day - days end at midnight Europe/Berlin for everyone (docs/PRD.md). */
 export function msUntilNextDay(now: Date): number {
-  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
-  return next.getTime() - now.getTime();
+  return msUntilNextBerlinDay(now);
 }
 
-function hashString(input: string): number {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash * 31 + input.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-}
-
-/** Deterministic per-person daily pick - different people get different groups, rotating at midnight. */
+/** Deterministic per-person daily pick - different people get different groups, rotating at Berlin midnight. */
 export function getTodaysGroupIdFor(subjectId: string, groups: QuestionGroup[], now: Date): string {
-  const index = hashString(`${subjectId}:${dayKey(now)}`) % groups.length;
-  return groups[index].id;
+  return groupIdForDay(subjectId, groups, berlinDayKey(now));
 }
 
 /** The current value per question, or undefined if this group was never completed. */
@@ -155,56 +107,15 @@ function logSupabaseError(context: string, error: { message: string } | null) {
 }
 
 export const useAppStore = create<AppState>((set, get) => {
-  function resolvedBetween(userAId: string, userBId: string, groupId: string): boolean {
-    const state = get();
-    const aGuessedB = statusOf(
-      state.guesses[userAId]?.[userBId]?.[groupId],
-      latestAnswers(state.history[userBId]?.[groupId]),
-    );
-    const bGuessedA = statusOf(
-      state.guesses[userBId]?.[userAId]?.[groupId],
-      latestAnswers(state.history[userAId]?.[groupId]),
-    );
-    return aGuessedB === 'resolved' || bGuessedA === 'resolved';
-  }
-
-  function pushStreak(userAId: string, userBId: string, streak: number, bumpedOn: string) {
-    if (!isSupabaseConfigured) return;
-    const [user_a, user_b] = [userAId, userBId].sort();
-    void supabase
-      .from('streaks')
-      .upsert({ user_a, user_b, streak, bumped_on: bumpedOn }, { onConflict: 'user_a,user_b' })
-      .then(({ error }) => logSupabaseError('streak upsert', error));
-  }
-
-  function bumpStreakIfResolved(userAId: string, userBId: string) {
-    const state = get();
-    const key = pairKey(userAId, userBId);
-    if (state.streakBumpedToday[key]) return;
-
-    const anyResolved = state.groups.some((group) => resolvedBetween(userAId, userBId, group.id));
-
-    if (anyResolved) {
-      const newStreak = (state.streaks[key] ?? 0) + 1;
-      set((s) => ({
-        streaks: { ...s.streaks, [key]: newStreak },
-        streakBumpedToday: { ...s.streakBumpedToday, [key]: true },
-      }));
-      pushStreak(userAId, userBId, newStreak, dayKey(getEffectiveNow(state)));
-    }
-  }
-
   return {
     users: {},
     activeUserId: '',
     groups: QUESTION_GROUPS,
     history: INITIAL_HISTORY,
     guesses: INITIAL_GUESSES,
-    streaks: INITIAL_STREAKS,
-    streakBumpedToday: {},
+    guessDays: {},
     favorites: [],
-    timeOffsetMs: 0,
-    lastProcessedDay: dayKey(new Date()),
+    today: berlinDayKey(new Date()),
 
     updateProfileName: (name) => {
       set((state) => ({
@@ -233,84 +144,64 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
 
-    advanceTimeBy: (ms) => {
-      const next = get().timeOffsetMs + ms;
-      set({ timeOffsetMs: next });
-      cacheTimeOffsetLocally(next);
-      pushGlobalTimeOffset(next);
-      get().checkDayRollover();
-    },
-
-    jumpToNextDay: () => {
-      const state = get();
-      const delta = msUntilNextDay(getEffectiveNow(state)) + 1000;
-      const next = state.timeOffsetMs + delta;
-      set({ timeOffsetMs: next });
-      cacheTimeOffsetLocally(next);
-      pushGlobalTimeOffset(next);
-      get().checkDayRollover();
-    },
-
-    resetTimeOffset: () => {
-      // Re-anchor the day-rollover bookkeeping to the real current day too -
-      // otherwise a jump forward (e.g. into tomorrow) leaves `lastProcessedDay`
-      // ahead of real "today", and the very next tick would see "today" as
-      // earlier than the last processed day and re-run rollover logic.
-      set({ timeOffsetMs: 0, lastProcessedDay: dayKey(new Date()), streakBumpedToday: {} });
-      cacheTimeOffsetLocally(0);
-      pushGlobalTimeOffset(0);
-    },
-
-    hydrateTimeOffset: async () => {
-      try {
-        const cached = await AsyncStorage.getItem(TIME_OFFSET_CACHE_KEY);
-        const ms = cached ? Number(cached) : 0;
-        if (ms) {
-          set({ timeOffsetMs: ms });
-          get().checkDayRollover();
-        }
-      } catch (err) {
-        console.error('[appStore] failed to read cached time offset:', err);
-      }
-    },
-
-    loadGlobalTimeOffset: async () => {
-      if (!isSupabaseConfigured) return;
-      const { data, error } = await supabase.from('test_clock').select('offset_ms').eq('id', 1).maybeSingle();
-      logSupabaseError('test_clock load', error);
-      if (!data) return;
-      const ms = Number(data.offset_ms) || 0;
-      if (ms !== get().timeOffsetMs) {
-        set({ timeOffsetMs: ms });
-        get().checkDayRollover();
-      }
-      cacheTimeOffsetLocally(ms);
-    },
-
     checkDayRollover: () => {
-      const state = get();
-      const today = dayKey(getEffectiveNow(state));
-      if (today === state.lastProcessedDay) return;
-      // Nobody resolved anything for a pair during the day that just ended -> their flame goes out.
-      set((s) => {
-        const nextStreaks: Record<string, number> = {};
-        for (const key of Object.keys(s.streaks)) {
-          if (s.streakBumpedToday[key]) {
-            nextStreaks[key] = s.streaks[key];
-          } else {
-            nextStreaks[key] = 0;
-            if (s.streaks[key] > 0) {
-              const [a, b] = key.split(':');
-              pushStreak(a, b, 0, today);
-            }
-          }
+      const today = berlinDayKey(new Date());
+      if (today !== get().today) set({ today });
+    },
+
+    resetToday: async () => {
+      const { activeUserId: me, today, groups, guessDays } = get();
+      if (!me) return null;
+      const myCardId = getTodaysGroupIdFor(me, groups, new Date());
+      const myGuessesToday = Object.entries(guessDays)
+        .map(([key, entry]) => ({ key, parts: key.split('|'), groupId: entry.groupId }))
+        .filter(({ parts }) => parts[0] === me && parts[2] === today)
+        .map(({ key, parts, groupId }) => ({ key, subjectId: parts[1], groupId }));
+
+      if (isSupabaseConfigured) {
+        const results = await Promise.all([
+          supabase.from('answers').delete().eq('user_id', me).eq('group_id', myCardId).select('id'),
+          ...myGuessesToday.map(({ subjectId, groupId }) =>
+            supabase.from('guesses').delete().eq('guesser_id', me).eq('subject_id', subjectId).eq('group_id', groupId),
+          ),
+          supabase.from('guess_days').delete().eq('guesser_id', me).eq('day', today),
+        ]);
+        const failed = results.find((result) => result.error);
+        if (failed?.error) {
+          logSupabaseError('reset today', failed.error);
+          return `Zurücksetzen fehlgeschlagen: ${failed.error.message}`;
         }
-        return { streaks: nextStreaks, streakBumpedToday: {}, lastProcessedDay: today };
+        // RLS silently skips rows it doesn't allow deleting - no error, just
+        // nothing deleted. Without the delete policies in schema.sql that's
+        // what happens, so check the answers actually went away.
+        const hadAnswers = Boolean(get().history[me]?.[myCardId]);
+        if (hadAnswers && (results[0].data ?? []).length === 0) {
+          return 'Nichts gelöscht - fehlen die Lösch-Regeln in Supabase? (supabase/schema.sql erneut ausführen)';
+        }
+      }
+
+      set((state) => {
+        const myHistory = { ...(state.history[me] ?? {}) };
+        delete myHistory[myCardId];
+        const myGuesses = { ...(state.guesses[me] ?? {}) };
+        const nextGuessDays = { ...state.guessDays };
+        for (const { key, subjectId, groupId } of myGuessesToday) {
+          const bySubject = { ...(myGuesses[subjectId] ?? {}) };
+          delete bySubject[groupId];
+          myGuesses[subjectId] = bySubject;
+          delete nextGuessDays[key];
+        }
+        return {
+          history: { ...state.history, [me]: myHistory },
+          guesses: { ...state.guesses, [me]: myGuesses },
+          guessDays: nextGuessDays,
+        };
       });
+      return null;
     },
 
     submitSelfAnswers: (subjectId, groupId, answers) => {
-      const at = getEffectiveNow(get()).toISOString();
+      const at = new Date().toISOString();
       const groupQuestions = get().groups.find((g) => g.id === groupId)?.questions ?? [];
       set((state) => {
         const existingForSubject = state.history[subjectId] ?? {};
@@ -342,11 +233,6 @@ export const useAppStore = create<AppState>((set, get) => {
           )
           .then(({ error }) => logSupabaseError('answers insert', error));
       }
-
-      // Answering can unlock any pending guess anyone else already made about this subject.
-      for (const otherId of Object.keys(get().users)) {
-        if (otherId !== subjectId) bumpStreakIfResolved(subjectId, otherId);
-      }
     },
 
     submitGuess: (subjectId, groupId, answers) => {
@@ -362,7 +248,7 @@ export const useAppStore = create<AppState>((set, get) => {
       }));
 
       if (isSupabaseConfigured) {
-        const at = getEffectiveNow(get()).toISOString();
+        const at = new Date().toISOString();
         void supabase
           .from('guesses')
           .upsert(
@@ -379,13 +265,32 @@ export const useAppStore = create<AppState>((set, get) => {
           .then(({ error }) => logSupabaseError('guesses upsert', error));
       }
 
-      bumpStreakIfResolved(guesserId, subjectId);
+      // Logged per Berlin day (append-only) so the streak can tell *which*
+      // day a friend's card was guessed - see src/utils/streak.ts.
+      // First guess of the day wins (matches the insert's ignoreDuplicates).
+      const guessedAt = new Date();
+      const day = berlinDayKey(guessedAt);
+      const dayKeyForPair = guessDayKey(guesserId, subjectId, day);
+      if (!get().guessDays[dayKeyForPair]) {
+        set((state) => ({
+          guessDays: { ...state.guessDays, [dayKeyForPair]: { groupId, at: guessedAt.toISOString() } },
+        }));
+      }
+      if (isSupabaseConfigured) {
+        void supabase
+          .from('guess_days')
+          .upsert(
+            { guesser_id: guesserId, subject_id: subjectId, day, group_id: groupId, created_at: guessedAt.toISOString() },
+            { onConflict: 'guesser_id,subject_id,day', ignoreDuplicates: true },
+          )
+          .then(({ error }) => logSupabaseError('guess_days insert', error));
+      }
     },
 
     toggleFavorite: (friendId, groupId, questionId) => {
       const ownerId = get().activeUserId;
       const id = `${ownerId}:${friendId}:${groupId}:${questionId}`;
-      const likedAt = getEffectiveNow(get()).toISOString();
+      const likedAt = new Date().toISOString();
       set((state) => {
         const exists = state.favorites.some((f) => f.id === id);
         return {
@@ -421,7 +326,7 @@ export const useAppStore = create<AppState>((set, get) => {
       if (!myId) return;
       const relevantIds = Array.from(new Set([myId, ...Object.keys(get().users).filter((id) => id !== myId)]));
 
-      const [answersRes, guessesRes, streaksRes] = await Promise.all([
+      const [answersRes, guessesRes, guessDaysRes] = await Promise.all([
         supabase
           .from('answers')
           .select('user_id, group_id, question_id, value, answered_at')
@@ -430,11 +335,14 @@ export const useAppStore = create<AppState>((set, get) => {
           .from('guesses')
           .select('guesser_id, subject_id, group_id, question_id, value')
           .or(`guesser_id.eq.${myId},subject_id.eq.${myId}`),
-        supabase.from('streaks').select('user_a, user_b, streak').or(`user_a.eq.${myId},user_b.eq.${myId}`),
+        supabase
+          .from('guess_days')
+          .select('guesser_id, subject_id, day, group_id, created_at')
+          .or(`guesser_id.eq.${myId},subject_id.eq.${myId}`),
       ]);
       logSupabaseError('answers load', answersRes.error);
       logSupabaseError('guesses load', guessesRes.error);
-      logSupabaseError('streaks load', streaksRes.error);
+      logSupabaseError('guess_days load', guessDaysRes.error);
 
       const cloudHistory: Record<string, Record<string, HistoryMap>> = {};
       for (const row of answersRes.data ?? []) {
@@ -458,9 +366,9 @@ export const useAppStore = create<AppState>((set, get) => {
         (byGroup[row.group_id] ??= {})[row.question_id] = row.value as AnswerValue;
       }
 
-      const cloudStreaks: Record<string, number> = {};
-      for (const row of streaksRes.data ?? []) {
-        cloudStreaks[pairKey(row.user_a, row.user_b)] = row.streak;
+      const cloudGuessDays: Record<string, GuessDay> = {};
+      for (const row of guessDaysRes.data ?? []) {
+        cloudGuessDays[guessDayKey(row.guesser_id, row.subject_id, row.day)] = { groupId: row.group_id, at: row.created_at };
       }
 
       set((s) => {
@@ -469,7 +377,7 @@ export const useAppStore = create<AppState>((set, get) => {
         for (const [guesserId, bySubject] of Object.entries(cloudGuesses)) {
           guesses[guesserId] = { ...(guesses[guesserId] ?? {}), ...bySubject };
         }
-        return { history, guesses, streaks: { ...s.streaks, ...cloudStreaks } };
+        return { history, guesses, guessDays: { ...s.guessDays, ...cloudGuessDays } };
       });
     },
 
@@ -479,8 +387,7 @@ export const useAppStore = create<AppState>((set, get) => {
         activeUserId: '',
         history: {},
         guesses: {},
-        streaks: {},
-        streakBumpedToday: {},
+        guessDays: {},
         favorites: [],
       });
     },
@@ -511,8 +418,9 @@ export function waitingForMeCount(state: AppState): number {
   return count;
 }
 
+/** Current flame count with a friend - derived from answers + guess days, never stored (see src/utils/streak.ts). */
 export function streakWith(state: AppState, friendId: string): number {
-  return state.streaks[pairKey(state.activeUserId, friendId)] ?? 0;
+  return computeStreak(state, state.activeUserId, friendId, state.today);
 }
 
 export interface MatchResult {

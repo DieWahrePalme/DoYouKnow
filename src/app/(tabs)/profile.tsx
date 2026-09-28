@@ -241,6 +241,7 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: {
     fontSize: 38,
+    lineHeight: 48,
   },
   stats: {
     flex: 1,
@@ -318,6 +319,7 @@ const styles = StyleSheet.create({
   },
   tileIcon: {
     fontSize: 26,
+    lineHeight: 32,
   },
   tileName: {
     textAlign: 'center',

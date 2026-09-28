@@ -908,5 +908,3 @@ export const INITIAL_HISTORY: Record<string, Record<string, HistoryMap>> = {};
 /** guesserId -> subjectId -> groupId -> the guesser's guess about that subject. Empty until real accounts guess about each other. */
 export const INITIAL_GUESSES: Record<string, Record<string, Record<string, AnswerMap>>> = {};
 
-/** pairKey(a, b) -> streak. Empty until two real accounts actually resolve a shared day. */
-export const INITIAL_STREAKS: Record<string, number> = {};

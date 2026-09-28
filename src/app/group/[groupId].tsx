@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FriendGuess, FriendGuessesAboutMe } from '@/components/friend-guesses-about-me';
 import { HistoryTrail } from '@/components/history-trail';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { ThemedText } from '@/components/themed-text';
@@ -11,6 +12,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { latestAnswers, useAppStore } from '@/state/appStore';
 import { AnswerMap } from '@/types';
+import { guessDayKey } from '@/utils/streak';
 
 export default function MyGroupScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
@@ -19,6 +21,21 @@ export default function MyGroupScreen() {
   const group = useAppStore((state) => state.groups.find((g) => g.id === groupId));
   const historyForGroup = useAppStore((state) => state.history[state.activeUserId]?.[groupId ?? '']);
   const submitSelfAnswers = useAppStore((state) => state.submitSelfAnswers);
+  const users = useAppStore((state) => state.users);
+  const guesses = useAppStore((state) => state.guesses);
+  const guessDays = useAppStore((state) => state.guessDays);
+  const today = useAppStore((state) => state.today);
+  // Only friends who guessed this card of mine *today* - a guess from an
+  // earlier time this card came around stays hidden.
+  const friendGuesses: FriendGuess[] = Object.values(users)
+    .filter((user) => user.id !== activeUserId)
+    .flatMap((friend) => {
+      const guessedToday = guessDays[guessDayKey(friend.id, activeUserId, today)];
+      const guess = guesses[friend.id]?.[activeUserId]?.[groupId ?? ''];
+      if (!guessedToday || guessedToday.groupId !== groupId || !guess) return [];
+      return [{ friend, guess, at: guessedToday.at }];
+    })
+    .sort((a, b) => a.at.localeCompare(b.at));
   const [isUpdating, setIsUpdating] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
 
@@ -71,6 +88,11 @@ export default function MyGroupScreen() {
                 entries={historyForGroup![question.id]}
               />
             ))}
+            <FriendGuessesAboutMe
+              questions={group.questions}
+              myAnswers={currentAnswers!}
+              friendGuesses={friendGuesses}
+            />
             <Pressable
               onPress={() => {
                 setJustSubmitted(false);

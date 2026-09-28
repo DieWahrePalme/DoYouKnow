@@ -14,18 +14,19 @@ function formatCountdown(ms: number): string {
   return `${minutes}min übrig`;
 }
 
+type ResetState = 'idle' | 'confirming' | 'resetting' | 'done';
+
 export function CountdownTimer() {
   const theme = useTheme();
-  const timeOffsetMs = useAppStore((state) => state.timeOffsetMs);
-  const advanceTimeBy = useAppStore((state) => state.advanceTimeBy);
-  const jumpToNextDay = useAppStore((state) => state.jumpToNextDay);
-  const resetTimeOffset = useAppStore((state) => state.resetTimeOffset);
   const checkDayRollover = useAppStore((state) => state.checkDayRollover);
+  const resetToday = useAppStore((state) => state.resetToday);
   // Starts `null` so the very first client render matches the static
   // export's server-prerendered markup (frozen at build time) instead of
   // immediately showing a different, real countdown - a mismatch there
   // would throw a hydration error. Ticks for real right after mount.
   const [nowMs, setNowMs] = useState<number | null>(null);
+  const [resetState, setResetState] = useState<ResetState>('idle');
+  const [resetError, setResetError] = useState<string | null>(null);
 
   useEffect(() => {
     setNowMs(Date.now());
@@ -36,35 +37,57 @@ export function CountdownTimer() {
     return () => clearInterval(interval);
   }, [checkDayRollover]);
 
+  async function handleResetPress() {
+    if (resetState !== 'confirming') {
+      setResetError(null);
+      setResetState('confirming');
+      return;
+    }
+    setResetState('resetting');
+    const error = await resetToday();
+    setResetError(error);
+    setResetState(error ? 'idle' : 'done');
+  }
+
+  const resetLabel = {
+    idle: '🧪 Heute zurücksetzen',
+    confirming: 'Wirklich? Nochmal tippen',
+    resetting: 'Setze zurück …',
+    done: '✓ Zurückgesetzt',
+  }[resetState];
+
   return (
     <View style={[styles.wrap, { backgroundColor: theme.backgroundElement }]}>
       <ThemedText type="smallBold">
-        ⏳ {nowMs === null ? 'Neue Themen bald' : `Neue Themen in ${formatCountdown(msUntilNextDay(new Date(nowMs + timeOffsetMs)))}`}
+        ⏳ {nowMs === null ? 'Neue Themen bald' : `Neue Themen in ${formatCountdown(msUntilNextDay(new Date(nowMs)))}`}
       </ThemedText>
       <View style={styles.testRow}>
-        <ThemedText type="small" themeColor="textSecondary">
-          Test:
-        </ThemedText>
         <Pressable
-          onPress={() => advanceTimeBy(60 * 60 * 1000)}
-          style={[styles.testButton, { borderColor: theme.textSecondary }]}>
-          <ThemedText type="small">+1 Std</ThemedText>
+          onPress={handleResetPress}
+          disabled={resetState === 'resetting'}
+          accessibilityRole="button"
+          accessibilityHint="Löscht deine Antworten auf die heutige Karte und deine heutigen Tipps"
+          style={[
+            styles.testButton,
+            { borderColor: resetState === 'confirming' ? theme.danger : theme.textSecondary },
+          ]}>
+          <ThemedText type="small" style={resetState === 'confirming' ? { color: theme.danger } : undefined}>
+            {resetLabel}
+          </ThemedText>
         </Pressable>
-        <Pressable
-          onPress={jumpToNextDay}
-          style={[styles.testButton, { borderColor: theme.textSecondary }]}>
-          <ThemedText type="small">⏭ Tageswechsel</ThemedText>
-        </Pressable>
-        {timeOffsetMs !== 0 ? (
-          <Pressable
-            onPress={resetTimeOffset}
-            style={[styles.testButton, { borderColor: theme.danger }]}>
-            <ThemedText type="small" style={{ color: theme.danger }}>
-              ↺ Jetzt
+        {resetState === 'confirming' ? (
+          <Pressable onPress={() => setResetState('idle')} accessibilityRole="button">
+            <ThemedText type="small" themeColor="textSecondary">
+              Abbrechen
             </ThemedText>
           </Pressable>
         ) : null}
       </View>
+      {resetError ? (
+        <ThemedText type="small" style={{ color: theme.danger }}>
+          {resetError}
+        </ThemedText>
+      ) : null}
     </View>
   );
 }

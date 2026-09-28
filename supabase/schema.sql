@@ -107,6 +107,11 @@ drop policy if exists "insert only your own answers" on public.answers;
 create policy "insert only your own answers" on public.answers
   for insert to authenticated with check ((select auth.uid()) = user_id);
 
+-- Delete own answers: used by the in-app "Heute zurücksetzen" test button.
+drop policy if exists "delete only your own answers" on public.answers;
+create policy "delete only your own answers" on public.answers
+  for delete to authenticated using ((select auth.uid()) = user_id);
+
 -- ---------------------------------------------------------------------------
 -- guesses: what one person guessed another person's latest answer to be.
 -- Overwritten (not appended) each time the guesser updates a guess.
@@ -136,9 +141,47 @@ drop policy if exists "only update your own guesses" on public.guesses;
 create policy "only update your own guesses" on public.guesses
   for update to authenticated using ((select auth.uid()) = guesser_id);
 
+drop policy if exists "only delete your own guesses" on public.guesses;
+create policy "only delete your own guesses" on public.guesses
+  for delete to authenticated using ((select auth.uid()) = guesser_id);
+
+-- ---------------------------------------------------------------------------
+-- guess_days: append-only log of "guesser guessed subject's card on this
+-- Berlin day". `guesses` above is overwritten per group, so it can't say
+-- *when* a card was guessed; streaks need exactly that. The app derives
+-- every streak from answers + guess_days (src/utils/streak.ts) instead of
+-- storing a counter. `day` is the client's Berlin day - trusted, which is
+-- fine for a friends-only MVP.
+-- ---------------------------------------------------------------------------
+create table if not exists public.guess_days (
+  guesser_id uuid not null references public.profiles (id) on delete cascade,
+  subject_id uuid not null references public.profiles (id) on delete cascade,
+  day date not null,
+  group_id text not null,
+  created_at timestamptz not null default now(),
+  primary key (guesser_id, subject_id, day)
+);
+
+alter table public.guess_days enable row level security;
+
+drop policy if exists "see guess days you made or that are about you" on public.guess_days;
+create policy "see guess days you made or that are about you" on public.guess_days
+  for select to authenticated using ((select auth.uid()) = guesser_id or (select auth.uid()) = subject_id);
+
+drop policy if exists "only log your own guess days" on public.guess_days;
+create policy "only log your own guess days" on public.guess_days
+  for insert to authenticated with check ((select auth.uid()) = guesser_id);
+
+drop policy if exists "only delete your own guess days" on public.guess_days;
+create policy "only delete your own guess days" on public.guess_days
+  for delete to authenticated using ((select auth.uid()) = guesser_id);
+
 -- ---------------------------------------------------------------------------
 -- streaks: one row per pair, canonicalized so user_a < user_b (avoids
 -- duplicate rows for (a,b) vs (b,a)).
+-- No longer read or written by the app - streaks are derived from
+-- guess_days now (see above). Kept so existing rows aren't dropped; safe
+-- to remove once nobody wants the old numbers.
 -- ---------------------------------------------------------------------------
 create table if not exists public.streaks (
   user_a uuid not null references public.profiles (id) on delete cascade,
@@ -183,7 +226,10 @@ create policy "manage only your own favorites" on public.favorites
   for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
 
 -- ---------------------------------------------------------------------------
--- test_clock: a single shared row holding the "+1h / next day" test-time
+-- test_clock: NO LONGER USED by the app - the time-jump test controls were
+-- removed in favor of the "Heute zurücksetzen" button. Kept so existing
+-- setups don't break; safe to drop. Original purpose: a single shared row
+-- holding the "+1h / next day" test-time
 -- jump, so it applies to every signed-in account at once instead of just the
 -- browser that pressed the button - the daily group only rotates once per
 -- real day, so testing streaks/rollovers across two test accounts needs a
