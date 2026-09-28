@@ -2,17 +2,18 @@
  * Privacy policy text - shown in the app and on the public /privacy page
  * (needed before signup and as the App Store privacy URL).
  *
- * DRAFT: the [[...]] placeholders must be filled in, and the text should be
- * checked (e.g. with a generator like datenschutz-generator.de or a lawyer)
- * before a public release. It describes what the app actually stores today.
+ * Describes what the app actually stores today. Before a public App Store
+ * release: have it checked (e.g. datenschutz-generator.de or a lawyer) and
+ * add a postal address (Impressum). The email is a placeholder until the app
+ * moves to its own domain.
  */
 export const PRIVACY_CONTACT = {
-  name: '[[Name der verantwortlichen Person]]',
-  email: '[[Kontakt-E-Mail]]',
-  supabaseRegion: '[[Region des Supabase-Projekts, z. B. EU (Frankfurt)]]',
+  name: 'Moritz Götz',
+  email: 'doyouknow.app@gmail.com',
+  supabaseRegion: 'EU (Frankfurt, Deutschland)',
 };
 
-export const PRIVACY_POLICY_UPDATED = '[[Datum]]';
+export const PRIVACY_POLICY_UPDATED = '28. September 2026';
 
 export interface PrivacySection {
   title: string;
