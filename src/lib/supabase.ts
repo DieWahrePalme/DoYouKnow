@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as aesjs from 'aes-js';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -135,3 +135,19 @@ export const supabase = createClient(supabaseUrl || 'https://placeholder.supabas
     flowType: Platform.OS === 'web' ? 'implicit' : 'pkce',
   },
 });
+
+// Native only (per Supabase's Expo guide): auth-js refreshes the token on a
+// timer, and on iOS/Android that timer keeps firing while the app sits in
+// the background with no network - every such tick logged "Auto refresh
+// tick failed with error". Refreshing only while the app is in the
+// foreground avoids that; on resume it refreshes right away if due. Web
+// needs nothing here - auth-js follows the tab's visibility itself.
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      void supabase.auth.startAutoRefresh();
+    } else {
+      void supabase.auth.stopAutoRefresh();
+    }
+  });
+}
