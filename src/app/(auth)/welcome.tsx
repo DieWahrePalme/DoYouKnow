@@ -62,6 +62,9 @@ const styles = StyleSheet.create({
   },
   logoEmoji: {
     fontSize: 48,
+    // ThemedText's default lineHeight (24) is half this size - iOS clips the
+    // glyph to the line box, so without this the emoji rendered cut in half.
+    lineHeight: 60,
   },
   heroTitle: {
     color: '#FFFFFF',

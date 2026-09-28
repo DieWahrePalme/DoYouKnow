@@ -79,5 +79,6 @@ const styles = StyleSheet.create({
   },
   choiceEmoji: {
     fontSize: 30,
+    lineHeight: 38,
   },
 });
