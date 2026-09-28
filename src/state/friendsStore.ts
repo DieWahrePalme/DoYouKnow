@@ -19,8 +19,12 @@ function toUserProfile(row: ProfileRow): UserProfile {
   return { id: row.id, name: row.username, avatarEmoji: row.avatar_emoji };
 }
 
+export type ReportReason = 'harassment' | 'inappropriate_profile' | 'spam' | 'other';
+
 interface FriendsState {
   incomingRequests: IncomingRequest[];
+  /** People I blocked - hidden from search, can't send me requests (enforced in Supabase). */
+  blockedUsers: UserProfile[];
   outgoingPendingIds: string[];
   searchResults: UserProfile[];
   searchLoading: boolean;
@@ -33,10 +37,16 @@ interface FriendsState {
   acceptRequest: (request: IncomingRequest) => Promise<void>;
   declineRequest: (friendshipId: string) => Promise<void>;
   removeFriend: (friendId: string) => Promise<void>;
+  fetchBlocked: () => Promise<void>;
+  /** Blocks someone: ends the friendship (a Supabase trigger does that) and stops requests both ways. */
+  blockUser: (profile: UserProfile) => Promise<{ error: string | null }>;
+  unblockUser: (userId: string) => Promise<{ error: string | null }>;
+  reportUser: (userId: string, reason: ReportReason, details: string) => Promise<{ error: string | null }>;
 }
 
 export const useFriendsStore = create<FriendsState>((set, get) => ({
   incomingRequests: [],
+  blockedUsers: [],
   outgoingPendingIds: [],
   searchResults: [],
   searchLoading: false,
@@ -81,6 +91,11 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       const row = profilesById[friendId];
       if (row) useAppStore.getState().mergeRealFriend(toUserProfile(row));
     }
+    // Someone who unfriended or blocked me in the meantime disappears too -
+    // this used to only ever add, so they lingered until the next app start.
+    for (const userId of Object.keys(useAppStore.getState().users)) {
+      if (userId !== myId && !acceptedFriendIds.includes(userId)) useAppStore.getState().removeFriendFromUsers(userId);
+    }
 
     set({
       incomingRequests,
@@ -105,8 +120,9 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       .ilike('username', `%${trimmed}%`)
       .neq('id', myId)
       .limit(15);
+    const blockedIds = new Set(get().blockedUsers.map((u) => u.id));
     set({
-      searchResults: error ? [] : (data ?? []).map(toUserProfile),
+      searchResults: error ? [] : (data ?? []).map(toUserProfile).filter((u) => !blockedIds.has(u.id)),
       searchLoading: false,
       error: error?.message ?? null,
     });
@@ -165,5 +181,52 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       .delete()
       .or(`and(user_id.eq.${myId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${myId})`);
     useAppStore.getState().removeFriendFromUsers(friendId);
+  },
+
+  fetchBlocked: async () => {
+    const myId = useAppStore.getState().activeUserId;
+    if (!myId) return;
+    const { data: blockRows, error } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', myId);
+    if (error) {
+      set({ error: error.message });
+      return;
+    }
+    const ids = (blockRows ?? []).map((row) => row.blocked_id);
+    if (ids.length === 0) {
+      set({ blockedUsers: [] });
+      return;
+    }
+    const { data: profileRows } = await supabase.from('profiles').select('id, username, avatar_emoji').in('id', ids);
+    set({ blockedUsers: (profileRows ?? []).map(toUserProfile) });
+  },
+
+  blockUser: async (profile) => {
+    const myId = useAppStore.getState().activeUserId;
+    const { error } = await supabase.from('blocks').insert({ blocker_id: myId, blocked_id: profile.id });
+    if (error && !error.message.includes('duplicate key')) return { error: error.message };
+    useAppStore.getState().removeFriendFromUsers(profile.id);
+    set((state) => ({
+      blockedUsers: [...state.blockedUsers.filter((u) => u.id !== profile.id), profile],
+      incomingRequests: state.incomingRequests.filter((r) => r.from.id !== profile.id),
+      outgoingPendingIds: state.outgoingPendingIds.filter((id) => id !== profile.id),
+      searchResults: state.searchResults.filter((u) => u.id !== profile.id),
+    }));
+    return { error: null };
+  },
+
+  unblockUser: async (userId) => {
+    const myId = useAppStore.getState().activeUserId;
+    const { error } = await supabase.from('blocks').delete().eq('blocker_id', myId).eq('blocked_id', userId);
+    if (error) return { error: error.message };
+    set((state) => ({ blockedUsers: state.blockedUsers.filter((u) => u.id !== userId) }));
+    return { error: null };
+  },
+
+  reportUser: async (userId, reason, details) => {
+    const myId = useAppStore.getState().activeUserId;
+    const { error } = await supabase
+      .from('reports')
+      .insert({ reporter_id: myId, reported_id: userId, reason, details: details.trim() || null });
+    return { error: error?.message ?? null };
   },
 }));

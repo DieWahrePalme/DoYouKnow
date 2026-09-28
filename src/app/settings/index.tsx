@@ -51,7 +51,12 @@ export default function SettingsScreen() {
             Datenschutz
           </ThemedText>
           <View style={styles.section}>
-            <ListRow icon="🛡️" title="Privacy Settings" onPress={() => router.push('/settings/privacy')} />
+            <ListRow
+              icon="🛡️"
+              title="Datenschutz & Konto"
+              subtitle="Datenschutz, Blockierte, Konto löschen"
+              onPress={() => router.push('/settings/privacy')}
+            />
           </View>
 
           <Pressable

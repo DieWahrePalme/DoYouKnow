@@ -51,6 +51,19 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Signup checks a username before the account exists (profiles are only
+-- readable when signed in). Returns only yes/no - no profile data leaks.
+create or replace function public.username_available(p_username text)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select not exists (select 1 from public.profiles where lower(username) = lower(p_username));
+$$;
+
+grant execute on function public.username_available(text) to anon, authenticated;
+
 -- ---------------------------------------------------------------------------
 -- friendships: one row per pair, created by the sender, accepted by the recipient
 -- ---------------------------------------------------------------------------
@@ -70,17 +83,36 @@ drop policy if exists "see your own friendships" on public.friendships;
 create policy "see your own friendships" on public.friendships
   for select to authenticated using ((select auth.uid()) = user_id or (select auth.uid()) = friend_id);
 
-drop policy if exists "send a friend request" on public.friendships;
-create policy "send a friend request" on public.friendships
-  for insert to authenticated with check ((select auth.uid()) = user_id);
+-- Sending a request: policy "send a friend request" is defined further down,
+-- next to the blocks table it depends on.
 
+-- Only the recipient can accept. Removing a friendship is a delete (below).
 drop policy if exists "recipient can accept or either side can remove" on public.friendships;
-create policy "recipient can accept or either side can remove" on public.friendships
-  for update to authenticated using ((select auth.uid()) = user_id or (select auth.uid()) = friend_id);
+drop policy if exists "only the recipient can accept" on public.friendships;
+create policy "only the recipient can accept" on public.friendships
+  for update to authenticated
+  using ((select auth.uid()) = friend_id)
+  with check ((select auth.uid()) = friend_id and status = 'accepted');
 
 drop policy if exists "either side can delete the friendship" on public.friendships;
 create policy "either side can delete the friendship" on public.friendships
   for delete to authenticated using ((select auth.uid()) = user_id or (select auth.uid()) = friend_id);
+
+-- True when a and b have an accepted friendship (either direction). Used by
+-- the answers/guesses policies. security definer so it can read
+-- friendships regardless of the caller's own RLS view of that table.
+create or replace function public.are_friends(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.friendships f
+    where f.status = 'accepted'
+      and ((f.user_id = a and f.friend_id = b) or (f.user_id = b and f.friend_id = a))
+  );
+$$;
 
 -- ---------------------------------------------------------------------------
 -- answers: append-only history of every round someone has answered for a
@@ -99,9 +131,15 @@ create index if not exists answers_user_group_idx on public.answers (user_id, gr
 
 alter table public.answers enable row level security;
 
+-- Only you and your accepted friends can read your answers. (It used to be
+-- every signed-in account - anyone with the app could pull everyone's raw
+-- answers through the API.) Friends still need them for results, streaks
+-- and the Match tab; docs/PRD.md tracks tightening this further.
 drop policy if exists "answers are readable by anyone signed in" on public.answers;
-create policy "answers are readable by anyone signed in" on public.answers
-  for select to authenticated using (true);
+drop policy if exists "answers are readable by you and your friends" on public.answers;
+create policy "answers are readable by you and your friends" on public.answers
+  for select to authenticated
+  using ((select auth.uid()) = user_id or public.are_friends((select auth.uid()), user_id));
 
 drop policy if exists "insert only your own answers" on public.answers;
 create policy "insert only your own answers" on public.answers
@@ -135,7 +173,8 @@ create policy "see guesses you made or that are about you" on public.guesses
 
 drop policy if exists "only guess as yourself" on public.guesses;
 create policy "only guess as yourself" on public.guesses
-  for insert to authenticated with check ((select auth.uid()) = guesser_id);
+  for insert to authenticated
+  with check ((select auth.uid()) = guesser_id and public.are_friends(guesser_id, subject_id));
 
 drop policy if exists "only update your own guesses" on public.guesses;
 create policy "only update your own guesses" on public.guesses
@@ -170,41 +209,18 @@ create policy "see guess days you made or that are about you" on public.guess_da
 
 drop policy if exists "only log your own guess days" on public.guess_days;
 create policy "only log your own guess days" on public.guess_days
-  for insert to authenticated with check ((select auth.uid()) = guesser_id);
+  for insert to authenticated
+  with check ((select auth.uid()) = guesser_id and public.are_friends(guesser_id, subject_id));
 
 drop policy if exists "only delete your own guess days" on public.guess_days;
 create policy "only delete your own guess days" on public.guess_days
   for delete to authenticated using ((select auth.uid()) = guesser_id);
 
 -- ---------------------------------------------------------------------------
--- streaks: one row per pair, canonicalized so user_a < user_b (avoids
--- duplicate rows for (a,b) vs (b,a)).
--- No longer read or written by the app - streaks are derived from
--- guess_days now (see above). Kept so existing rows aren't dropped; safe
--- to remove once nobody wants the old numbers.
+-- streaks: removed. Streaks are derived from answers + guess_days in the app
+-- (src/utils/streak.ts); the old stored counter drifted and double-counted.
 -- ---------------------------------------------------------------------------
-create table if not exists public.streaks (
-  user_a uuid not null references public.profiles (id) on delete cascade,
-  user_b uuid not null references public.profiles (id) on delete cascade,
-  streak integer not null default 0,
-  bumped_on date,
-  primary key (user_a, user_b),
-  check (user_a < user_b)
-);
-
-alter table public.streaks enable row level security;
-
-drop policy if exists "see your own streaks" on public.streaks;
-create policy "see your own streaks" on public.streaks
-  for select to authenticated using ((select auth.uid()) = user_a or (select auth.uid()) = user_b);
-
-drop policy if exists "upsert a streak you're part of" on public.streaks;
-create policy "upsert a streak you're part of" on public.streaks
-  for insert to authenticated with check ((select auth.uid()) = user_a or (select auth.uid()) = user_b);
-
-drop policy if exists "update a streak you're part of" on public.streaks;
-create policy "update a streak you're part of" on public.streaks
-  for update to authenticated using ((select auth.uid()) = user_a or (select auth.uid()) = user_b);
+drop table if exists public.streaks;
 
 -- ---------------------------------------------------------------------------
 -- favorites: shared answers a person liked, private to them.
@@ -226,36 +242,379 @@ create policy "manage only your own favorites" on public.favorites
   for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
 
 -- ---------------------------------------------------------------------------
--- test_clock: NO LONGER USED by the app - the time-jump test controls were
--- removed in favor of the "Heute zurücksetzen" button. Kept so existing
--- setups don't break; safe to drop. Original purpose: a single shared row
--- holding the "+1h / next day" test-time
--- jump, so it applies to every signed-in account at once instead of just the
--- browser that pressed the button - the daily group only rotates once per
--- real day, so testing streaks/rollovers across two test accounts needs a
--- clock they both actually see move.
---
--- SECURITY NOTE: any authenticated user can move time for every other
--- account. That is the point while this is a small, trusted testing group -
--- lock this down (or remove it) before real strangers can sign up.
+-- test_clock: removed. It held the shared "+1h / next day" test offset, and
+-- any signed-in account could move it for everyone. Replaced in the app by
+-- the per-user "Heute zurücksetzen" button.
 -- ---------------------------------------------------------------------------
-create table if not exists public.test_clock (
-  id smallint primary key default 1,
-  offset_ms bigint not null default 0,
-  updated_at timestamptz not null default now(),
-  check (id = 1)
+drop table if exists public.test_clock;
+
+-- ---------------------------------------------------------------------------
+-- Account deletion (App Store requirement: deletable inside the app).
+-- Deleting the auth user cascades through profiles to every table that
+-- references it (answers, guesses, guess_days, friendships, favorites,
+-- blocks, reports, push_tokens, daily_cards).
+-- ---------------------------------------------------------------------------
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not signed in';
+  end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+revoke execute on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- blocks: "I don't want contact with this person". Blocking ends an existing
+-- friendship (trigger below) and stops new friend requests in both
+-- directions (friendships insert policy). Only the blocker sees the row.
+-- ---------------------------------------------------------------------------
+create table if not exists public.blocks (
+  blocker_id uuid not null references public.profiles (id) on delete cascade,
+  blocked_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
 );
 
-insert into public.test_clock (id, offset_ms)
-values (1, 0)
-on conflict (id) do nothing;
+alter table public.blocks enable row level security;
 
-alter table public.test_clock enable row level security;
+drop policy if exists "see who you blocked" on public.blocks;
+create policy "see who you blocked" on public.blocks
+  for select to authenticated using ((select auth.uid()) = blocker_id);
 
-drop policy if exists "anyone signed in can read the shared test clock" on public.test_clock;
-create policy "anyone signed in can read the shared test clock" on public.test_clock
-  for select to authenticated using (true);
+drop policy if exists "block as yourself" on public.blocks;
+create policy "block as yourself" on public.blocks
+  for insert to authenticated with check ((select auth.uid()) = blocker_id);
 
-drop policy if exists "anyone signed in can move the shared test clock" on public.test_clock;
-create policy "anyone signed in can move the shared test clock" on public.test_clock
-  for update to authenticated using (true) with check (true);
+drop policy if exists "unblock as yourself" on public.blocks;
+create policy "unblock as yourself" on public.blocks
+  for delete to authenticated using ((select auth.uid()) = blocker_id);
+
+create or replace function public.is_blocked_between(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.blocks
+    where (blocker_id = a and blocked_id = b) or (blocker_id = b and blocked_id = a)
+  );
+$$;
+
+create or replace function public.end_friendship_on_block()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.friendships
+  where (user_id = new.blocker_id and friend_id = new.blocked_id)
+     or (user_id = new.blocked_id and friend_id = new.blocker_id);
+  return null;
+end;
+$$;
+
+drop trigger if exists blocks_end_friendship on public.blocks;
+create trigger blocks_end_friendship
+  after insert on public.blocks
+  for each row execute function public.end_friendship_on_block();
+
+-- Sending a friend request: always as yourself and always 'pending' -
+-- otherwise a sender could insert it straight as 'accepted' and make
+-- themselves anyone's friend (which also opens that person's answers, see
+-- are_friends). And never across a block, in either direction.
+drop policy if exists "send a friend request" on public.friendships;
+create policy "send a friend request" on public.friendships
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id and status = 'pending' and not public.is_blocked_between(user_id, friend_id));
+
+-- ---------------------------------------------------------------------------
+-- reports: a user reports another user. Reviewed by hand in the Supabase
+-- dashboard (Table Editor -> reports). Reporters only see their own reports.
+-- ---------------------------------------------------------------------------
+create table if not exists public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references public.profiles (id) on delete cascade,
+  reported_id uuid not null references public.profiles (id) on delete cascade,
+  reason text not null check (reason in ('harassment', 'inappropriate_profile', 'spam', 'other')),
+  details text check (char_length(details) <= 1000),
+  created_at timestamptz not null default now(),
+  check (reporter_id <> reported_id)
+);
+
+alter table public.reports enable row level security;
+
+drop policy if exists "see your own reports" on public.reports;
+create policy "see your own reports" on public.reports
+  for select to authenticated using ((select auth.uid()) = reporter_id);
+
+drop policy if exists "report as yourself" on public.reports;
+create policy "report as yourself" on public.reports
+  for insert to authenticated with check ((select auth.uid()) = reporter_id);
+
+-- ===========================================================================
+-- Push notifications (docs/PRD.md: "result ready" + "streak at risk" 22:00)
+--
+-- Sent straight from Postgres through Expo's push service - no extra server.
+-- Needs two Supabase extensions: pg_net (HTTP calls) and pg_cron (the hourly
+-- job). Enable both under Database -> Extensions, or run the two lines below.
+-- ===========================================================================
+create extension if not exists pg_net;
+create extension if not exists pg_cron;
+
+-- The current Berlin calendar day - the same day boundary the app uses.
+create or replace function public.berlin_today()
+returns date
+language sql
+stable
+as $$ select (now() at time zone 'Europe/Berlin')::date $$;
+
+-- Start of the Berlin day after `d`, as an absolute timestamp.
+create or replace function public.berlin_day_end(d date)
+returns timestamptz
+language sql
+immutable
+as $$ select ((d + 1)::timestamp at time zone 'Europe/Berlin') $$;
+
+-- ---------------------------------------------------------------------------
+-- push_tokens: Expo push tokens per device. Registered/unregistered through
+-- the two functions below (a token can move between accounts when someone
+-- signs out and another person signs in on the same phone).
+-- ---------------------------------------------------------------------------
+create table if not exists public.push_tokens (
+  token text primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.push_tokens enable row level security;
+
+drop policy if exists "see your own push tokens" on public.push_tokens;
+create policy "see your own push tokens" on public.push_tokens
+  for select to authenticated using ((select auth.uid()) = user_id);
+
+create or replace function public.register_push_token(p_token text)
+returns void
+language sql
+security definer set search_path = public
+as $$
+  insert into public.push_tokens (token, user_id, updated_at)
+  values (p_token, auth.uid(), now())
+  on conflict (token) do update set user_id = excluded.user_id, updated_at = now();
+$$;
+
+create or replace function public.unregister_push_token(p_token text)
+returns void
+language sql
+security definer set search_path = public
+as $$
+  delete from public.push_tokens where token = p_token and user_id = auth.uid();
+$$;
+
+revoke execute on function public.register_push_token(text) from public, anon;
+revoke execute on function public.unregister_push_token(text) from public, anon;
+grant execute on function public.register_push_token(text) to authenticated;
+grant execute on function public.unregister_push_token(text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- daily_cards: which card each person got on which Berlin day. The draw only
+-- runs in the app (src/utils/dailyCard.ts), so the app records it here - the
+-- 22:00 reminder needs to know whether someone answered *their* card today.
+-- ---------------------------------------------------------------------------
+create table if not exists public.daily_cards (
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  day date not null,
+  group_id text not null,
+  primary key (user_id, day)
+);
+
+alter table public.daily_cards enable row level security;
+
+drop policy if exists "see your own daily cards" on public.daily_cards;
+create policy "see your own daily cards" on public.daily_cards
+  for select to authenticated using ((select auth.uid()) = user_id);
+
+drop policy if exists "record your own daily card" on public.daily_cards;
+create policy "record your own daily card" on public.daily_cards
+  for insert to authenticated with check ((select auth.uid()) = user_id);
+
+-- ---------------------------------------------------------------------------
+-- send_push: one Expo push per token of the given users. Server-only - not
+-- callable from the app, or anyone could spam anyone.
+-- ---------------------------------------------------------------------------
+create or replace function public.send_push(p_user_ids uuid[], p_title text, p_body text)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  messages jsonb;
+begin
+  select jsonb_agg(jsonb_build_object('to', t.token, 'title', p_title, 'body', p_body, 'sound', 'default'))
+    into messages
+    from public.push_tokens t
+    where t.user_id = any (p_user_ids);
+  if messages is null then
+    return;
+  end if;
+  perform net.http_post(
+    url := 'https://exp.host/--/api/v2/push/send',
+    body := messages,
+    headers := '{"Content-Type": "application/json"}'::jsonb
+  );
+end;
+$$;
+
+revoke execute on function public.send_push(uuid[], text, text) from public, anon, authenticated;
+
+-- "Result ready": I just answered my card -> everyone who guessed that card
+-- of mine today can now see how well they know me.
+create or replace function public.notify_result_ready()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  r record;
+  subject_name text;
+begin
+  for r in select distinct n.user_id, n.group_id from new_rows n loop
+    subject_name := (select username from public.profiles where id = r.user_id);
+    perform public.send_push(
+      array(
+        select gd.guesser_id from public.guess_days gd
+        where gd.subject_id = r.user_id and gd.group_id = r.group_id and gd.day = public.berlin_today()
+      ),
+      '🎉 ' || subject_name || ' hat geantwortet',
+      'Deine Auflösung ist da – schau, wie gut du ' || subject_name || ' kennst!'
+    );
+  end loop;
+  return null;
+end;
+$$;
+
+drop trigger if exists answers_notify_result_ready on public.answers;
+create trigger answers_notify_result_ready
+  after insert on public.answers
+  referencing new table as new_rows
+  for each statement execute function public.notify_result_ready();
+
+-- "Someone guessed you": a friend just guessed my card for today.
+create or replace function public.notify_guessed()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  guesser_name text := (select username from public.profiles where id = new.guesser_id);
+begin
+  perform public.send_push(
+    array[new.subject_id],
+    '👀 ' || guesser_name || ' hat deine Karte getippt',
+    case
+      when exists (select 1 from public.answers a where a.user_id = new.subject_id and a.group_id = new.group_id)
+        then 'Schau dir an, wie gut ' || guesser_name || ' dich kennt.'
+      else 'Beantworte deine Karte, dann seht ihr beide die Auflösung.'
+    end
+  );
+  return null;
+end;
+$$;
+
+drop trigger if exists guess_days_notify_guessed on public.guess_days;
+create trigger guess_days_notify_guessed
+  after insert on public.guess_days
+  for each row execute function public.notify_guessed();
+
+-- ---------------------------------------------------------------------------
+-- Streak at risk, 22:00 Berlin. Mirrors src/utils/streak.ts: a day counts
+-- when both guessed each other's card that day and both had their own card
+-- (the one the other guessed) answered by the end of that day.
+-- ---------------------------------------------------------------------------
+create or replace function public.pair_day_complete(a uuid, b uuid, d date)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.guess_days ab
+    join public.guess_days ba on ba.guesser_id = b and ba.subject_id = a and ba.day = d
+    where ab.guesser_id = a and ab.subject_id = b and ab.day = d
+      and exists (select 1 from public.answers x
+                  where x.user_id = a and x.group_id = ba.group_id and x.answered_at < public.berlin_day_end(d))
+      and exists (select 1 from public.answers x
+                  where x.user_id = b and x.group_id = ab.group_id and x.answered_at < public.berlin_day_end(d))
+  );
+$$;
+
+-- Is `u` still missing their own part with `other` today? (Guessed the
+-- other's card, and answered their own card - known via daily_cards.
+-- No daily_cards row = u hasn't opened the app today = certainly missing.)
+create or replace function public.part_missing(u uuid, other uuid, d date)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select not exists (select 1 from public.guess_days g where g.guesser_id = u and g.subject_id = other and g.day = d)
+      or not exists (
+        select 1 from public.daily_cards c
+        join public.answers x on x.user_id = c.user_id and x.group_id = c.group_id
+        where c.user_id = u and c.day = d and x.answered_at < public.berlin_day_end(d)
+      );
+$$;
+
+-- p_force skips the 22:00 check - for testing from the SQL editor:
+--   select public.send_streak_reminders(true);
+create or replace function public.send_streak_reminders(p_force boolean default false)
+returns integer
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  today date := public.berlin_today();
+  r record;
+  sent integer := 0;
+begin
+  if not p_force and extract(hour from now() at time zone 'Europe/Berlin') <> 22 then
+    return 0;
+  end if;
+  for r in
+    with pairs as (
+      select f.user_id as a, f.friend_id as b from public.friendships f where f.status = 'accepted'
+    ),
+    sides as (
+      select a as u, b as o from pairs union all select b, a from pairs
+    ),
+    at_risk as (
+      select s.u, s.o from sides s
+      where public.pair_day_complete(s.u, s.o, today - 1)
+        and not public.pair_day_complete(s.u, s.o, today)
+        and public.part_missing(s.u, s.o, today)
+    )
+    select ar.u, string_agg(p.username, ', ' order by p.username) as names
+    from at_risk ar join public.profiles p on p.id = ar.o
+    group by ar.u
+  loop
+    perform public.send_push(array[r.u], '🔥 Nur noch 2 Stunden', 'Halte deine Flamme mit ' || r.names || ' am Leben!');
+    sent := sent + 1;
+  end loop;
+  return sent;
+end;
+$$;
+
+revoke execute on function public.send_streak_reminders(boolean) from public, anon, authenticated;
+
+-- Hourly; the function itself only acts at 22:00 Berlin (this also covers
+-- the summer/winter time switch, which a fixed UTC cron time wouldn't).
+select cron.schedule('streak-reminders', '0 * * * *', $$select public.send_streak_reminders()$$);

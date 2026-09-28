@@ -57,6 +57,21 @@ function FriendListRow({ friend }: { friend: UserProfile }) {
           Entfernen
         </ThemedText>
       </Pressable>
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: '/friend/[id]/safety',
+            params: { id: friend.id, name: friend.name, avatar: friend.avatarEmoji },
+          })
+        }
+        accessibilityRole="button"
+        accessibilityLabel={`${friend.name} melden oder blockieren`}
+        hitSlop={8}
+        style={styles.moreButton}>
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          ⋯
+        </ThemedText>
+      </Pressable>
     </View>
   );
 }
@@ -152,6 +167,10 @@ const styles = StyleSheet.create({
   removeButton: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.two,
+  },
+  moreButton: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.one,
   },
   empty: {
     textAlign: 'center',

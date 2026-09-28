@@ -4,10 +4,14 @@ import { addDays } from '@/utils/berlinDay';
 /**
  * Which topic card someone gets on a given Berlin day.
  *
- * Random, but with memory: yesterday's card can't come back, and the longer
- * a card hasn't been drawn, the likelier it gets - weight = (days since it
- * was last drawn - 1)^2, capped, with never-drawn cards at the cap. No fixed
- * order, so it still feels random.
+ * Random, but with memory:
+ * - Hard minimum gap: a card drawn in the last MAX_MIN_GAP_DAYS (300) days
+ *   can't come back. With fewer cards the gap shrinks so at least
+ *   MIN_CANDIDATES stay drawable (66 cards -> 46 days).
+ * - Among the rest, the longer a card hasn't been drawn, the likelier it
+ *   gets - weight = (days since last drawn - 1)^2, capped, with never-drawn
+ *   cards at the cap. No fixed order, so it still feels random.
+ * With ~366 cards that means no repeat for 10 months, as docs/PRD.md asks.
  *
  * Every device has to agree on everyone's card, so the "randomness" is
  * seeded from (person, day) and the draw history is replayed day by day
@@ -15,6 +19,8 @@ import { addDays } from '@/utils/berlinDay';
  * once per app session.
  */
 const EPOCH_DAY = '2026-09-01';
+const MAX_MIN_GAP_DAYS = 300;
+const MIN_CANDIDATES = 20;
 
 function hashString(input: string): number {
   let hash = 0;
@@ -34,7 +40,9 @@ function seededUnit(seed: number): number {
 
 function drawIndex(subjectId: string, dayKey: string, lastDrawnDayIndex: number[], dayIndex: number): number {
   const cap = lastDrawnDayIndex.length;
+  const minGap = Math.max(1, Math.min(MAX_MIN_GAP_DAYS, cap - MIN_CANDIDATES));
   const weights = lastDrawnDayIndex.map((last) => {
+    if (last >= 0 && dayIndex - last <= minGap) return 0;
     const daysSince = last < 0 ? cap + 1 : Math.min(dayIndex - last, cap + 1);
     return (daysSince - 1) ** 2;
   });

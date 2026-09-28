@@ -26,8 +26,8 @@ export default function WelcomeScreen() {
       </LinearGradient>
 
       <SafeAreaView style={styles.actions} edges={['bottom']}>
-        <PrimaryButton label="Konto erstellen" onPress={() => router.push('/(auth)/register')} />
-        <SecondaryButton label="Anmelden" onPress={() => router.push('/(auth)/login')} />
+        <PrimaryButton label="Los geht’s" onPress={() => router.push('/(auth)/intro')} />
+        <SecondaryButton label="Ich habe schon ein Konto" onPress={() => router.push('/(auth)/login')} />
       </SafeAreaView>
     </View>
   );

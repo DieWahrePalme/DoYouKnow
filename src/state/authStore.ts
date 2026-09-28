@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
 import { getAuthRedirectUrl, parseAuthLink } from '@/lib/authLinking';
+import { unregisterPushToken } from '@/lib/pushNotifications';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useAppStore } from '@/state/appStore';
 
@@ -12,6 +13,17 @@ export interface AuthProfile {
 }
 
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
+
+export interface SignUpInput {
+  email: string;
+  password: string;
+  username: string;
+  avatarEmoji: string;
+  /** "Ich bin mindestens 16" - the signup form can't be submitted without it. */
+  confirmedAge16: true;
+  /** Privacy policy accepted - likewise required. */
+  acceptedPrivacy: true;
+}
 
 interface AuthState {
   status: AuthStatus;
@@ -26,9 +38,13 @@ interface AuthState {
   /** Signs in from a confirmation/reset deep link (native only - on web these land as a normal page load). */
   handleAuthLink: (url: string) => Promise<void>;
   clearPendingPasswordRecovery: () => void;
-  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
+  signUp: (input: SignUpInput) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  /** Whether a username is still free - usable before signing up. */
+  checkUsernameAvailable: (username: string) => Promise<boolean>;
+  /** Permanently deletes the account and all its data (Supabase delete_my_account), then signs out locally. */
+  deleteAccount: () => Promise<{ error: string | null }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
   retryProfileLoad: () => Promise<void>;
@@ -113,7 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ profile, profileError: error });
   },
 
-  signUp: async (email, password, username) => {
+  signUp: async ({ email, password, username, avatarEmoji }) => {
     set({ error: null });
     if (!isSupabaseConfigured) {
       set({ error: NOT_CONFIGURED_ERROR });
@@ -122,7 +138,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username, avatar_emoji: '🙂' }, emailRedirectTo: getAuthRedirectUrl() },
+      options: {
+        // Stored with the auth user; handle_new_user copies username + avatar
+        // into profiles. The consent timestamps document when (and that) the
+        // person confirmed 16+ and accepted the privacy policy.
+        data: {
+          username,
+          avatar_emoji: avatarEmoji,
+          age_confirmed_16_at: new Date().toISOString(),
+          privacy_accepted_at: new Date().toISOString(),
+        },
+        emailRedirectTo: getAuthRedirectUrl(),
+      },
     });
     const message = error ? friendlyAuthError(error.message) : null;
     set({ error: message });
@@ -142,7 +169,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
+    // Needs the session for the RPC, so before signing out.
+    await unregisterPushToken();
     await supabase.auth.signOut();
+  },
+
+  checkUsernameAvailable: async (username) => {
+    if (!isSupabaseConfigured) return true;
+    const { data, error } = await supabase.rpc('username_available', { p_username: username });
+    // If the check itself fails, let signup try - the unique constraint still guards it.
+    return error ? true : Boolean(data);
+  },
+
+  deleteAccount: async () => {
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) return { error: `Konto konnte nicht gelöscht werden: ${error.message}` };
+    // The server-side session is gone with the user - only clear it locally.
+    // onAuthStateChange then resets the app state like a normal sign-out.
+    await supabase.auth.signOut({ scope: 'local' });
+    return { error: null };
   },
 
   resetPassword: async (email) => {
