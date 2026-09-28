@@ -1,5 +1,7 @@
 import { AnswerMap, Category, HistoryMap, QuestionGroup } from '@/types';
 
+import { EXTRA_CARDS } from './cards';
+
 /** Umbrella groupings shown on the Match screen, e.g. "Sport" rolls up Sport, Fitness & Gym, Lieblingssportarten. */
 export const CATEGORIES: Category[] = [
   { id: 'reise', name: 'Reise & Freizeit', icon: '🏖️' },
@@ -15,6 +17,16 @@ export const CATEGORIES: Category[] = [
   { id: 'politik', name: 'Politik & Gesellschaft', icon: '🏛️' },
   { id: 'kunst', name: 'Kunst & Kultur', icon: '🎨' },
   { id: 'bildung', name: 'Bildung & Wissen', icon: '📖' },
+  { id: 'kindheit', name: 'Kindheit & Erinnerungen', icon: '🧸' },
+  { id: 'familie', name: 'Familie', icon: '👨‍👩‍👧' },
+  { id: 'werte', name: 'Werte & Moral', icon: '⚖️' },
+  { id: 'gedankenspiele', name: 'Was wäre wenn …', icon: '🤯' },
+  { id: 'gewohnheiten', name: 'Macken & Gewohnheiten', icon: '🙃' },
+  { id: 'gefuehle', name: 'Gefühle', icon: '💭' },
+  { id: 'traeume', name: 'Träume & Ziele', icon: '🌠' },
+  { id: 'mut', name: 'Mut & Ängste', icon: '😱' },
+  { id: 'natur', name: 'Natur & Tiere', icon: '🌿' },
+  { id: 'gestaendnisse', name: 'Geständnisse & Skurriles', icon: '🤫' },
 ];
 
 const GROUP_CATEGORY: Record<string, string> = {
@@ -891,12 +903,20 @@ const GROUP_DEFS: { id: string; name: string; icon: string; questions: string[] 
   },
 ];
 
-/** The shared catalog of topics. Every person answers into the same groups independently. */
-export const QUESTION_GROUPS: QuestionGroup[] = GROUP_DEFS.map((group) => ({
+/**
+ * The shared catalog of topics. Every person answers into the same groups
+ * independently. The original 66 live below; the 300 added later are in
+ * src/data/cards/. Order matters for the daily draw (src/utils/dailyCard.ts),
+ * so new cards are only ever appended.
+ */
+export const QUESTION_GROUPS: QuestionGroup[] = [
+  ...GROUP_DEFS.map((group) => ({ ...group, category: GROUP_CATEGORY[group.id] })),
+  ...EXTRA_CARDS,
+].map((group) => ({
   id: group.id,
   name: group.name,
   icon: group.icon,
-  category: GROUP_CATEGORY[group.id],
+  category: group.category,
   questions: group.questions.map((text, index) => ({ id: `${group.id}-q${index + 1}`, text })),
 }));
 
