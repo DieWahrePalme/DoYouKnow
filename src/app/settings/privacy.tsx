@@ -1,6 +1,8 @@
+import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ListRow } from '@/components/list-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -27,24 +29,30 @@ export default function PrivacySettingsScreen() {
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <ThemedText type="subtitle" style={styles.heading}>
-            Privacy Settings
+            Datenschutz & Konto
           </ThemedText>
 
           <InfoRow
             icon="👥"
             title="Wer deine Antworten sieht"
-            body="Deine Antworten sind für alle Personen sichtbar, die du hinzugefügt hast - damit sie raten können, wie gut sie dich kennen."
+            body="Nur deine bestätigten Freunde - damit sie raten und ihre Auflösung sehen können. Niemand sonst, auch nicht über die Datenbank."
           />
           <InfoRow
             icon="🔒"
             title="Deine Zugangsdaten"
             body="E-Mail und Passwort werden von Supabase Auth verwaltet und niemals mit anderen Nutzer:innen geteilt."
           />
-          <InfoRow
-            icon="🗑️"
-            title="Konto löschen"
-            body="Noch nicht direkt in der App möglich - schreib uns, wenn du dein Konto und alle Daten dauerhaft löschen möchtest."
-          />
+
+          <View style={styles.links}>
+            <ListRow icon="📄" title="Datenschutzerklärung" onPress={() => router.push('/privacy')} />
+            <ListRow icon="🚫" title="Blockierte Personen" onPress={() => router.push('/settings/blocked')} />
+            <ListRow
+              icon="🗑️"
+              title="Konto löschen"
+              subtitle="Konto und alle Daten endgültig entfernen"
+              onPress={() => router.push('/settings/delete-account')}
+            />
+          </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -69,6 +77,10 @@ const styles = StyleSheet.create({
   },
   heading: {
     marginBottom: Spacing.two,
+  },
+  links: {
+    marginTop: Spacing.three,
+    gap: Spacing.two,
   },
   row: {
     flexDirection: 'row',

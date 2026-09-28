@@ -43,6 +43,8 @@ interface AppState {
   resetToday: () => Promise<string | null>;
   /** Moves `today` forward once the Berlin day changes. Cheap - safe to call every second. */
   checkDayRollover: () => void;
+  /** Records today's card for the signed-in user in Supabase (daily_cards) - the 22:00 streak reminder needs it. Idempotent. */
+  recordTodaysCard: () => void;
   /** Makes the real signed-in account "you" in the app - called once after login/signup. */
   syncRealUser: (profile: UserProfile) => void;
   /** Adds a real accepted friend's profile to the roster so every screen that reads `users` picks them up. */
@@ -147,6 +149,18 @@ export const useAppStore = create<AppState>((set, get) => {
     checkDayRollover: () => {
       const today = berlinDayKey(new Date());
       if (today !== get().today) set({ today });
+    },
+
+    recordTodaysCard: () => {
+      const { activeUserId: me, today, groups } = get();
+      if (!me || !isSupabaseConfigured) return;
+      void supabase
+        .from('daily_cards')
+        .upsert(
+          { user_id: me, day: today, group_id: getTodaysGroupIdFor(me, groups, new Date()) },
+          { onConflict: 'user_id,day', ignoreDuplicates: true },
+        )
+        .then(({ error }) => logSupabaseError('daily_cards insert', error));
     },
 
     resetToday: async () => {

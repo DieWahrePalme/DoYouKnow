@@ -5,8 +5,34 @@ import { ActivityIndicator, Platform, useColorScheme, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Colors } from '@/constants/theme';
+import { registerForPushNotifications } from '@/lib/pushNotifications';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
+
+/**
+ * Every screen that needs an account. Listing them inside Stack.Protected
+ * (not just the tab group) matters: on sign-out or account deletion the
+ * guard removes them from the stack - otherwise a pushed screen like
+ * Settings stayed visible on top of the welcome screen. /privacy is left
+ * out on purpose: the signup flow links to it while signed out.
+ */
+const SIGNED_IN_SCREENS = [
+  'add-friend',
+  'friend-requests',
+  'friends',
+  'friend/[id]/group/[groupId]',
+  'friend/[id]/safety',
+  'group/[groupId]',
+  'match/[friendId]/index',
+  'match/[friendId]/[categoryId]',
+  'settings/index',
+  'settings/avatar',
+  'settings/blocked',
+  'settings/delete-account',
+  'settings/password',
+  'settings/privacy',
+  'settings/username',
+] as const;
 
 /** How often a signed-in client checks whether Berlin midnight has passed. */
 const DAY_ROLLOVER_CHECK_MS = 15 * 1000;
@@ -17,6 +43,9 @@ export default function RootLayout() {
   const status = useAuthStore((state) => state.status);
   const init = useAuthStore((state) => state.init);
   const checkDayRollover = useAppStore((state) => state.checkDayRollover);
+  const recordTodaysCard = useAppStore((state) => state.recordTodaysCard);
+  const activeUserId = useAppStore((state) => state.activeUserId);
+  const today = useAppStore((state) => state.today);
   const handleAuthLink = useAuthStore((state) => state.handleAuthLink);
   const pendingPasswordRecovery = useAuthStore((state) => state.pendingPasswordRecovery);
   const clearPendingPasswordRecovery = useAuthStore((state) => state.clearPendingPasswordRecovery);
@@ -49,6 +78,15 @@ export default function RootLayout() {
     return () => clearInterval(interval);
   }, [status, checkDayRollover]);
 
+  useEffect(() => {
+    if (status === 'signedIn') void registerForPushNotifications();
+  }, [status]);
+
+  // Tell the server which card is mine today (once per account per day).
+  useEffect(() => {
+    if (status === 'signedIn' && activeUserId) recordTodaysCard();
+  }, [status, activeUserId, today, recordTodaysCard]);
+
   if (status === 'loading') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
@@ -70,6 +108,9 @@ export default function RootLayout() {
           }}>
           <Stack.Protected guard={status === 'signedIn'}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            {SIGNED_IN_SCREENS.map((name) => (
+              <Stack.Screen key={name} name={name} />
+            ))}
           </Stack.Protected>
           <Stack.Protected guard={status !== 'signedIn'}>
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,22 @@ function RequestRow({ request }: { request: IncomingRequest }) {
       <ThemedText type="default" style={styles.rowName}>
         {request.from.name}
       </ThemedText>
+      <Pressable
+        disabled={busy}
+        onPress={() =>
+          router.push({
+            pathname: '/friend/[id]/safety',
+            params: { id: request.from.id, name: request.from.name, avatar: request.from.avatarEmoji },
+          })
+        }
+        accessibilityRole="button"
+        accessibilityLabel={`${request.from.name} melden oder blockieren`}
+        hitSlop={8}
+        style={styles.declineButton}>
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          ⋯
+        </ThemedText>
+      </Pressable>
       <Pressable disabled={busy} onPress={handleDecline} style={styles.declineButton}>
         <ThemedText type="smallBold" style={{ color: theme.danger }}>
           Ablehnen

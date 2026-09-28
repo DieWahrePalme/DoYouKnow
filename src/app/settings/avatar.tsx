@@ -1,16 +1,14 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AvatarGrid } from '@/components/avatar-grid';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { AVATAR_CHOICES } from '@/data/mockData';
-import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
 
 export default function AvatarSettingsScreen() {
-  const theme = useTheme();
   const currentEmoji = useAppStore((state) => state.users[state.activeUserId]?.avatarEmoji);
   const updateProfileAvatar = useAppStore((state) => state.updateProfileAvatar);
 
@@ -21,26 +19,13 @@ export default function AvatarSettingsScreen() {
           <ThemedText type="subtitle" style={styles.heading}>
             Profilbild wählen
           </ThemedText>
-          <View style={styles.grid}>
-            {AVATAR_CHOICES.map((emoji) => {
-              const selected = emoji === currentEmoji;
-              return (
-                <Pressable
-                  key={emoji}
-                  onPress={() => {
-                    updateProfileAvatar(emoji);
-                    router.back();
-                  }}
-                  style={[
-                    styles.choice,
-                    { backgroundColor: theme.backgroundElement },
-                    selected && { borderColor: theme.primary, borderWidth: 2 },
-                  ]}>
-                  <ThemedText style={styles.choiceEmoji}>{emoji}</ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
+          <AvatarGrid
+            selected={currentEmoji}
+            onSelect={(emoji) => {
+              updateProfileAvatar(emoji);
+              router.back();
+            }}
+          />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -64,21 +49,5 @@ const styles = StyleSheet.create({
   heading: {
     marginTop: Spacing.three,
     marginBottom: Spacing.three,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
-  },
-  choice: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  choiceEmoji: {
-    fontSize: 30,
-    lineHeight: 38,
   },
 });
