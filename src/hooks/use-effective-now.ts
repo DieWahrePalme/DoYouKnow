@@ -9,15 +9,18 @@ import { useAppStore } from '@/state/appStore';
  * countdown, "vor 3 Tagen", "heute") must read time through this instead of
  * `Date.now()`/`new Date()` directly, or the static export hydrates with a
  * text mismatch (server prerendered at build time, client mounts later).
+ *
+ * Re-reads the clock whenever the store's `today` moves past Berlin
+ * midnight - it used to freeze at mount time, so a screen left open over
+ * midnight kept showing yesterday's cards.
  */
 export function useEffectiveNow(): Date | null {
-  const timeOffsetMs = useAppStore((state) => state.timeOffsetMs);
-  const [mountedAtMs, setMountedAtMs] = useState<number | null>(null);
+  const today = useAppStore((state) => state.today);
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
-    setMountedAtMs(Date.now());
-  }, []);
+    setNow(new Date());
+  }, [today]);
 
-  if (mountedAtMs === null) return null;
-  return new Date(mountedAtMs + timeOffsetMs);
+  return now;
 }

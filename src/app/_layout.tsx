@@ -8,16 +8,15 @@ import { Colors } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
 
-/** How often every signed-in client re-checks the shared test_clock, so an account's time jump reaches everyone else's screen. */
-const GLOBAL_CLOCK_POLL_MS = 15 * 1000;
+/** How often a signed-in client checks whether Berlin midnight has passed. */
+const DAY_ROLLOVER_CHECK_MS = 15 * 1000;
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const status = useAuthStore((state) => state.status);
   const init = useAuthStore((state) => state.init);
-  const hydrateTimeOffset = useAppStore((state) => state.hydrateTimeOffset);
-  const loadGlobalTimeOffset = useAppStore((state) => state.loadGlobalTimeOffset);
+  const checkDayRollover = useAppStore((state) => state.checkDayRollover);
   const handleAuthLink = useAuthStore((state) => state.handleAuthLink);
   const pendingPasswordRecovery = useAuthStore((state) => state.pendingPasswordRecovery);
   const clearPendingPasswordRecovery = useAuthStore((state) => state.clearPendingPasswordRecovery);
@@ -25,8 +24,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     init();
-    void hydrateTimeOffset();
-  }, [init, hydrateTimeOffset]);
+  }, [init]);
 
   // On native, confirmation/reset emails open the app via doyouknow:// (or
   // exp:// in Expo Go) with the session tokens in the URL - covers both a
@@ -42,16 +40,14 @@ export default function RootLayout() {
     router.push('/settings/password');
   }, [status, pendingPasswordRecovery, clearPendingPasswordRecovery]);
 
-  // The local cache above only avoids a flash of real time on startup - once
-  // signed in, the shared Supabase row is authoritative, and polling here
-  // (rather than only on Home) keeps every screen's "now" in sync even while
-  // sitting on a friend's guess screen or Profile.
+  // Moves `today` past Berlin midnight on every screen (not just Home) -
+  // streaks, today's cards and useEffectiveNow all follow it.
   useEffect(() => {
     if (status !== 'signedIn') return;
-    void loadGlobalTimeOffset();
-    const interval = setInterval(() => void loadGlobalTimeOffset(), GLOBAL_CLOCK_POLL_MS);
+    checkDayRollover();
+    const interval = setInterval(checkDayRollover, DAY_ROLLOVER_CHECK_MS);
     return () => clearInterval(interval);
-  }, [status, loadGlobalTimeOffset]);
+  }, [status, checkDayRollover]);
 
   if (status === 'loading') {
     return (

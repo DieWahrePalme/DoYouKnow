@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useShallow } from 'zustand/react/shallow';
 
 import { CountdownTimer } from '@/components/countdown-timer';
 import { FriendRow } from '@/components/friend-row';
@@ -20,7 +21,6 @@ import {
 } from '@/state/appStore';
 import { useFriendsStore } from '@/state/friendsStore';
 import { UserProfile } from '@/types';
-import { pairKey } from '@/utils/pairKey';
 
 /** Within this window before the daily deadline, "not answered yet" escalates from a neutral x to an urgent warning. */
 const URGENCY_WINDOW_MS = 2 * 60 * 60 * 1000;
@@ -149,12 +149,19 @@ function ChallengeCard() {
 export default function HomeScreen() {
   const users = useAppStore((state) => state.users);
   const activeUserId = useAppStore((state) => state.activeUserId);
-  const streaks = useAppStore((state) => state.streaks);
-  const streakOf = (friendId: string) => streaks[pairKey(activeUserId, friendId)] ?? 0;
+  const streakByFriend = useAppStore(
+    useShallow((state) =>
+      Object.fromEntries(
+        Object.keys(state.users)
+          .filter((id) => id !== state.activeUserId)
+          .map((id) => [id, streakWith(state, id)]),
+      ),
+    ),
+  );
   // Every accepted friend shows up right away - streak only decides the order, not visibility.
   const friends = Object.values(users)
     .filter((user) => user.id !== activeUserId)
-    .sort((a, b) => streakOf(b.id) - streakOf(a.id) || a.name.localeCompare(b.name));
+    .sort((a, b) => (streakByFriend[b.id] ?? 0) - (streakByFriend[a.id] ?? 0) || a.name.localeCompare(b.name));
 
   const [refreshing, setRefreshing] = useState(false);
 
