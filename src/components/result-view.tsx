@@ -1,8 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { ANSWER_LABELS, AnswerMap, Question } from '@/types';
 import { formatPoints, guessOutcome, OUTCOME_ICONS, OUTCOME_POINTS } from '@/utils/guessScore';
 
@@ -14,18 +15,18 @@ interface ResultViewProps {
 }
 
 export function ResultView({ subjectName, questions, guesses, truth }: ResultViewProps) {
+  const theme = useTheme();
+
   if (!truth) {
     return (
-      <ThemedView type="backgroundElement" style={styles.waitingCard}>
-        <ThemedText style={styles.hourglassBig}>⏳</ThemedText>
-        <ThemedText type="subtitle" style={styles.centerText}>
-          Warte auf {subjectName}
-        </ThemedText>
-        <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
+      <View style={[styles.waitingCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <Ionicons name="hourglass-outline" size={36} color={theme.textSecondary} />
+        <ThemedText style={styles.waitingTitle}>Warte auf {subjectName}</ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.centerText}>
           Sobald {subjectName} die eigenen Fragen des Tages beantwortet hat, siehst du hier sofort deine
           Auflösung.
         </ThemedText>
-      </ThemedView>
+      </View>
     );
   }
 
@@ -34,67 +35,53 @@ export function ResultView({ subjectName, questions, guesses, truth }: ResultVie
 
   return (
     <View style={styles.resultWrap}>
-      <ThemedView type="backgroundElement" style={styles.scoreCard}>
-        <ThemedText type="title" style={styles.centerText}>
-          {formatPoints(points)} / {questions.length}
+      <View style={styles.score}>
+        <ThemedText style={styles.scoreValue}>
+          {formatPoints(points)}/{questions.length}
         </ThemedText>
-        <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
+        <ThemedText themeColor="textSecondary" style={styles.centerText}>
           richtig geraten über {subjectName}
         </ThemedText>
-      </ThemedView>
+      </View>
 
-      {questions.map((question) => {
-        const outcome = guessOutcome(guesses[question.id], truth[question.id]);
-        return (
-          <View key={question.id} style={styles.row}>
-            <ThemedText style={styles.rowIcon}>{OUTCOME_ICONS[outcome]}</ThemedText>
-            <View style={styles.rowText}>
-              <ThemedText type="small">{question.text}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                Deine Vermutung: {ANSWER_LABELS[guesses[question.id]]} · {subjectName}:{' '}
-                {ANSWER_LABELS[truth[question.id]]}
-              </ThemedText>
+      <View style={[styles.list, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        {questions.map((question, i) => {
+          const icon = OUTCOME_ICONS[guessOutcome(guesses[question.id], truth[question.id])];
+          return (
+            <View
+              key={question.id}
+              style={[styles.row, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+              <Ionicons name={icon.name} size={22} color={icon.color} />
+              <View style={styles.rowText}>
+                <ThemedText style={styles.rowQuestion}>{question.text}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.rowDetail}>
+                  Du: {ANSWER_LABELS[guesses[question.id]]} · {subjectName}: {ANSWER_LABELS[truth[question.id]]}
+                </ThemedText>
+              </View>
             </View>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   waitingCard: {
-    borderRadius: Spacing.four,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.five,
     alignItems: 'center',
     gap: Spacing.two,
   },
-  hourglassBig: {
-    fontSize: 40,
-    lineHeight: 50,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  resultWrap: {
-    gap: Spacing.three,
-  },
-  scoreCard: {
-    borderRadius: Spacing.four,
-    padding: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    alignItems: 'flex-start',
-  },
-  rowIcon: {
-    fontSize: 18,
-  },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
+  waitingTitle: { fontFamily: FontFamily.display, fontSize: 26, lineHeight: 30, letterSpacing: -0.5, color: '#F5F5F7' },
+  centerText: { textAlign: 'center' },
+  resultWrap: { gap: Spacing.four },
+  score: { alignItems: 'center', gap: 2 },
+  scoreValue: { fontFamily: FontFamily.display, fontSize: 64, lineHeight: 68, letterSpacing: -2, color: '#F5F5F7' },
+  list: { borderRadius: Radius.card, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, padding: Spacing.three },
+  rowText: { flex: 1, gap: 2 },
+  rowQuestion: { fontFamily: FontFamily.bodySemi, fontSize: 15, lineHeight: 21 },
+  rowDetail: { fontSize: 12, lineHeight: 16 },
 });

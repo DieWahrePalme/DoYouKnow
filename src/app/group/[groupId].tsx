@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -6,10 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GuessHeader } from '@/components/guess-header';
 import { FriendGuess, FriendGuessesAboutMe } from '@/components/friend-guesses-about-me';
 import { HistoryTrail } from '@/components/history-trail';
+import { SectionLabel } from '@/components/section-label';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { latestAnswers, useAppStore } from '@/state/appStore';
 import { AnswerMap } from '@/types';
@@ -64,7 +66,7 @@ export default function MyGroupScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.heading}>
-          <GuessHeader avatarEmoji={myAvatar} kicker="Deine Antworten" topicName={group.name} />
+          <GuessHeader avatarEmoji={myAvatar} kicker="Deine Karte" topicName={group.name} />
         </View>
 
         {showSwipeDeck ? (
@@ -72,32 +74,42 @@ export default function MyGroupScreen() {
             <SwipeDeck questions={group.questions} onComplete={handleComplete} />
           </>
         ) : (
-          <ScrollView contentContainerStyle={styles.summary}>
+          <ScrollView contentContainerStyle={styles.summary} showsVerticalScrollIndicator={false}>
             {justSubmitted ? (
-              <ThemedView type="backgroundElement" style={styles.doneBanner}>
-                <ThemedText type="smallBold">
-                  ✅ Gespeichert – deine Freunde sehen jetzt die aktuelle Antwort.
+              <View style={[styles.doneBanner, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                <Ionicons name="checkmark-circle" size={20} color={theme.success} />
+                <ThemedText type="smallBold" style={styles.doneText}>
+                  Gespeichert – deine Freunde sehen jetzt die aktuelle Antwort.
                 </ThemedText>
-              </ThemedView>
+              </View>
             ) : null}
-            {group.questions.map((question) => (
-              <HistoryTrail
-                key={question.id}
-                questionText={question.text}
-                entries={historyForGroup![question.id]}
-              />
-            ))}
+
+            <SectionLabel>Deine Antworten</SectionLabel>
+            <View style={[styles.answersCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              {group.questions.map((question, i) => (
+                <View
+                  key={question.id}
+                  style={i > 0 ? { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth } : undefined}>
+                  <HistoryTrail questionText={question.text} entries={historyForGroup![question.id]} />
+                </View>
+              ))}
+            </View>
+
+            <SectionLabel>Von Freunden getippt</SectionLabel>
             <FriendGuessesAboutMe
               questions={group.questions}
               myAnswers={currentAnswers!}
               friendGuesses={friendGuesses}
             />
+
             <Pressable
               onPress={() => {
                 setJustSubmitted(false);
                 setIsUpdating(true);
               }}
-              style={[styles.button, { backgroundColor: theme.backgroundSelected }]}>
+              accessibilityRole="button"
+              style={[styles.button, { borderColor: theme.border }]}>
+              <Ionicons name="refresh" size={18} color={theme.text} />
               <ThemedText type="smallBold">Antworten aktualisieren</ThemedText>
             </Pressable>
           </ScrollView>
@@ -124,18 +136,30 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
   },
   summary: {
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
+    paddingBottom: Spacing.five,
   },
   doneBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  doneText: { flex: 1 },
+  answersCard: {
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
   button: {
-    marginTop: Spacing.two,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.four,
-    alignSelf: 'center',
+    marginTop: Spacing.four,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
 });

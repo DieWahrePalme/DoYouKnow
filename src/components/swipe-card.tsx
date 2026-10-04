@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -7,6 +7,7 @@ import Animated, {
   interpolate,
   runOnJS,
   SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -20,11 +21,17 @@ import { useTheme } from '@/hooks/use-theme';
 import { AnswerValue, Question } from '@/types';
 
 const SWIPE_THRESHOLD = 90;
+const EXIT_DISTANCE = 700;
 /** Velocity (px/s) at which a short flick still counts as a swipe. */
 const FLICK_VELOCITY = 800;
-/** Minimum exit speed (px/s): even a slow drag past the threshold leaves briskly. */
-const MIN_EXIT_SPEED = 1600;
-const EXIT_DISTANCE = 700;
+/** Floor for the exit speed (px/s); keeps even a slow drag from crawling off. */
+const MIN_EXIT_SPEED = 900;
+/** The exit never takes less/more than this, so a throw reads as a motion, not a cut. */
+const MIN_EXIT_MS = 380;
+const MAX_EXIT_MS = 560;
+/** Drag distance (px) after which the card behind has fully moved up into place. */
+const BEHIND_FULL_AT = 200;
+
 const EXIT_TARGETS: Record<Exclude<AnswerValue, 'never'>, [number, number]> = {
   yes: [EXIT_DISTANCE, 0],
   no: [-EXIT_DISTANCE, 0],
@@ -40,22 +47,47 @@ export interface SwipeCardHandle {
 interface SwipeCardProps {
   question: Question;
   onAnswer: (value: AnswerValue) => void;
+  /** The top card takes gestures; the one behind just waits and rises as the top card is dragged away. */
   active: boolean;
-  translateX: SharedValue<number>;
-  translateY: SharedValue<number>;
+  /** 0-1: how far the top card has been dragged away. Written by the active card, read by the one behind. */
+  dragProgress: SharedValue<number>;
 }
 
+/**
+ * Cards keep their identity for their whole life (the deck keys them by
+ * question id): the card behind becomes the top card without being recreated,
+ * so there is no remount flash when a question is answered.
+ */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { question, onAnswer, active, translateX, translateY },
+  { question, onAnswer, active, dragProgress },
   ref,
 ) {
   const theme = useTheme();
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
   const neverPulse = useSharedValue(0);
   // True once the drag has passed the commit threshold, so the tick fires once per crossing.
   const armed = useSharedValue(false);
+  const isActive = useSharedValue(active ? 1 : 0);
+  // Fades a freshly added back card in, so it doesn't pop in behind the top one.
+  const appear = useSharedValue(active ? 1 : 0);
 
-  // The next card is already visible behind this one at full size by the
-  // time this one mounts, so it needs no entrance animation (it would pop).
+  useEffect(() => {
+    isActive.value = active ? 1 : 0;
+  }, [active, isActive]);
+
+  useEffect(() => {
+    appear.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) });
+  }, [appear]);
+
+  // The top card reports its drag; the card behind follows it.
+  useAnimatedReaction(
+    () => (isActive.value ? Math.min(Math.hypot(translateX.value, translateY.value) / BEHIND_FULL_AT, 1) : -1),
+    (value) => {
+      if (value >= 0) dragProgress.value = value;
+    },
+  );
+
   function tick() {
     void Haptics.selectionAsync();
   }
@@ -71,9 +103,9 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
     'worklet';
     const distance = Math.hypot(exitX - translateX.value, exitY - translateY.value);
     const speed = Math.max(Math.hypot(velocityX, velocityY), MIN_EXIT_SPEED);
-    const duration = Math.min(340, Math.max(170, (distance / speed) * 1000));
-    // Starts fast (the card is thrown), eases out at the end.
-    const easing = Easing.bezier(0.2, 0.7, 0.3, 1);
+    const duration = Math.min(MAX_EXIT_MS, Math.max(MIN_EXIT_MS, (distance / speed) * 1000));
+    // Leaves with momentum and settles out; the card behind rises over the same time.
+    const easing = Easing.bezier(0.25, 0.6, 0.3, 1);
 
     armed.value = false;
     runOnJS(thud)();
@@ -85,8 +117,8 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
 
   function playNever() {
     neverPulse.value = withSequence(
-      withTiming(1, { duration: 110 }),
-      withTiming(0, { duration: 260 }, (finished) => {
+      withTiming(1, { duration: 160 }),
+      withTiming(0, { duration: 360 }, (finished) => {
         if (finished) runOnJS(onAnswer)('never');
       }),
     );
@@ -155,23 +187,18 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
 
   const gesture = Gesture.Race(pan, doubleTap);
 
-  const dragMagnitude = (tx: number, ty: number) => {
-    'worklet';
-    return Math.min(Math.hypot(tx, ty) / 220, 1);
-  };
-
   const cardStyle = useAnimatedStyle(() => {
-    const drag = dragMagnitude(translateX.value, translateY.value);
     const travelled = Math.hypot(translateX.value, translateY.value);
+    // 1 = fully "behind" (small, low, dim), 0 = in place. The top card is always in place.
+    const behind = isActive.value ? 0 : 1 - dragProgress.value;
     return {
-      // Fades only once it is well on its way out, so it never looks cut off.
-      opacity: interpolate(travelled, [380, 620], [1, 0], 'clamp'),
+      opacity: interpolate(behind, [0, 1], [1, 0.55]) * appear.value * interpolate(travelled, [420, 700], [1, 0], 'clamp'),
       transform: [
         { translateX: translateX.value },
-        { translateY: translateY.value },
+        { translateY: translateY.value + behind * 18 },
         // Keeps rotating while it flies out, which sells the throw.
         { rotate: `${interpolate(translateX.value, [-320, 320], [-14, 14])}deg` },
-        { scale: interpolate(drag, [0, 1], [1, 1.02]) },
+        { scale: 1 - behind * 0.06 },
       ],
     };
   });
@@ -199,7 +226,12 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, cardStyle]}>
+      <Animated.View
+        style={[
+          styles.card,
+          { backgroundColor: theme.backgroundElement, borderColor: theme.border, zIndex: active ? 2 : 1 },
+          cardStyle,
+        ]}>
         <Animated.View style={[styles.stamp, styles.stampRight, styles.stampYes, yesStampStyle]}>
           <ThemedText style={styles.stampText}>JA</ThemedText>
         </Animated.View>

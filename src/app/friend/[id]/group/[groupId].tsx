@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -59,7 +60,8 @@ export default function FriendGroupGuessScreen() {
             <ResultView subjectName={friend.name} questions={group.questions} guesses={guess} truth={truth} />
             <Pressable
               onPress={() => router.back()}
-              style={[styles.button, { backgroundColor: theme.backgroundSelected }]}>
+              style={[styles.button, { borderColor: theme.border }]}>
+              <Ionicons name="arrow-back" size={18} color={theme.text} />
               <ThemedText type="smallBold">Zurück</ThemedText>
             </Pressable>
           </>
@@ -87,9 +89,12 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: Spacing.three,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.four,
-    alignSelf: 'center',
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderRadius: 999,
+    borderWidth: 1,
   },
 });
