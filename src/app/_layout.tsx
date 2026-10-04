@@ -1,9 +1,16 @@
 import { useLinkingURL } from 'expo-linking';
-import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
+import {
+  BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_800ExtraBold,
+} from '@expo-google-fonts/bricolage-grotesque';
+import { Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
+import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, Platform, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { FieldBackground } from '@/components/field-background';
 import { Colors } from '@/constants/theme';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
 import { useAppStore } from '@/state/appStore';
@@ -34,12 +41,21 @@ const SIGNED_IN_SCREENS = [
   'settings/username',
 ] as const;
 
+/** Navigation theme with a see-through background so the animated field shows behind every screen. */
+const NAV_THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: 'transparent' } };
+
 /** How often a signed-in client checks whether Berlin midnight has passed. */
 const DAY_ROLLOVER_CHECK_MS = 15 * 1000;
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
+  const [fontsLoaded] = useFonts({
+    BricolageGrotesque_600SemiBold,
+    BricolageGrotesque_800ExtraBold,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
   const status = useAuthStore((state) => state.status);
   const init = useAuthStore((state) => state.init);
   const checkDayRollover = useAppStore((state) => state.checkDayRollover);
@@ -87,7 +103,7 @@ export default function RootLayout() {
     if (status === 'signedIn' && activeUserId) recordTodaysCard();
   }, [status, activeUserId, today, recordTodaysCard]);
 
-  if (status === 'loading') {
+  if (status === 'loading' || !fontsLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
         <ActivityIndicator color={theme.primary} size="large" />
@@ -96,15 +112,17 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
+      <FieldBackground />
+      <ThemeProvider value={NAV_THEME}>
         <Stack
           screenOptions={{
             title: '',
-            headerStyle: { backgroundColor: theme.background },
+            headerStyle: { backgroundColor: 'transparent' },
+            headerTransparent: true,
             headerTintColor: theme.text,
             headerShadowVisible: false,
-            contentStyle: { backgroundColor: theme.background },
+            contentStyle: { backgroundColor: 'transparent' },
           }}>
           <Stack.Protected guard={status === 'signedIn'}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
