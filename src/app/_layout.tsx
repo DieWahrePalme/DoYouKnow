@@ -57,6 +57,7 @@ export default function RootLayout() {
   const theme = useTheme();
   const scheme = useColorScheme();
   const loadAppearance = useAppearanceStore((state) => state.load);
+  const appearanceLoaded = useAppearanceStore((state) => state.loaded);
   const [fontsLoaded] = useFonts({
     BricolageGrotesque_600SemiBold,
     BricolageGrotesque_800ExtraBold,
@@ -112,7 +113,7 @@ export default function RootLayout() {
     if (status === 'signedIn' && activeUserId) recordTodaysCard();
   }, [status, activeUserId, today, recordTodaysCard]);
 
-  if (status === 'loading' || !fontsLoaded) {
+  if (status === 'loading' || !fontsLoaded || !appearanceLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
         <ActivityIndicator color={theme.primary} size="large" />
