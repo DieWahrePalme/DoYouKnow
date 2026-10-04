@@ -10,7 +10,7 @@ import { GroupedListItem } from '@/components/grouped-list-item';
 import { SmallButton } from '@/components/small-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { PLACEHOLDER_COLOR, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useFriendsStore } from '@/state/friendsStore';
 import { UserProfile } from '@/types';
@@ -79,8 +79,9 @@ export default function AddFriendScreen() {
                   autoCorrect={false}
                   autoFocus
                   placeholder="z. B. momo_23"
-                  placeholderTextColor="#5E5E6C"
+                  placeholderTextColor={PLACEHOLDER_COLOR}
                   selectionColor={theme.primary}
+                  maxFontSizeMultiplier={2}
                   accessibilityLabel="Benutzername suchen"
                   returnKeyType="search"
                   style={[styles.searchInput, { color: theme.text }]}
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    height: 52,
+    minHeight: 52,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
     borderWidth: StyleSheet.hairlineWidth,

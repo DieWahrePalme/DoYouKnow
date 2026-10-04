@@ -48,7 +48,11 @@ export function FieldBackground() {
   const reduceMotion = useReduceMotion();
 
   return (
-    <View style={[StyleSheet.absoluteFill, styles.base]} pointerEvents="none">
+    <View
+      style={[StyleSheet.absoluteFill, styles.base]}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants">
       <FieldCanvas width={width} height={height} paused={!focused || !appActive || reduceMotion} variant={variant} />
     </View>
   );

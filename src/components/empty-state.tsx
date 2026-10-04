@@ -19,10 +19,12 @@ export function EmptyState({ icon, title, body, action }: EmptyStateProps) {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.iconCircle, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.iconCircle, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
         <Ionicons name={icon} size={28} color={theme.textSecondary} />
       </View>
-      <ThemedText style={styles.title}>{title}</ThemedText>
+      <ThemedText style={styles.title} accessibilityRole="header">
+        {title}
+      </ThemedText>
       {body ? (
         <ThemedText themeColor="textSecondary" style={styles.body}>
           {body}

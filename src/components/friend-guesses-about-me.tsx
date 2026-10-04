@@ -14,6 +14,8 @@ export interface FriendGuess {
   at: string;
 }
 
+const OUTCOME_SPOKEN = { exact: 'Richtig', direction: 'Halb richtig', wrong: 'Falsch' } as const;
+
 const timeFormatter = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
 
 interface FriendGuessesAboutMeProps {
@@ -46,7 +48,7 @@ export function FriendGuessesAboutMe({ questions, myAnswers, friendGuesses }: Fr
           0,
         );
         return (
-          <View key={friend.id} style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <View key={friend.id} accessible={false} style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
             <View style={styles.header}>
               <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
                 <ThemedText style={styles.avatarEmoji}>{friend.avatarEmoji}</ThemedText>
@@ -67,7 +69,11 @@ export function FriendGuessesAboutMe({ questions, myAnswers, friendGuesses }: Fr
               const outcome = guessOutcome(guess[question.id], myAnswers[question.id]);
               const icon = OUTCOME_ICONS[outcome];
               return (
-                <View key={question.id} style={styles.row}>
+                <View
+                  key={question.id}
+                  style={styles.row}
+                  accessible
+                  accessibilityLabel={`${OUTCOME_SPOKEN[outcome]}. ${question.text}. ${friend.name}: ${guess[question.id] ? ANSWER_LABELS[guess[question.id]] : 'keine Antwort'}, du: ${ANSWER_LABELS[myAnswers[question.id]]}`}>
                   <Ionicons name={icon.name} size={20} color={icon.color} />
                   <View style={styles.rowText}>
                     <ThemedText type="small" style={styles.rowQuestion}>

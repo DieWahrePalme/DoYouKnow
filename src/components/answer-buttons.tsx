@@ -42,7 +42,13 @@ export function AnswerButtons({ onAnswer }: AnswerButtonsProps) {
             ]}>
             <Ionicons name={button.icon} size={26} color={theme.text} />
           </Pressable>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
+          <ThemedText
+            type="small"
+            themeColor="textSecondary"
+            style={styles.label}
+            maxFontSizeMultiplier={1.3}
+            accessibilityElementsHidden
+            importantForAccessibility="no">
             {button.label}
           </ThemedText>
         </View>

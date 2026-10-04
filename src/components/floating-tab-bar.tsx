@@ -31,7 +31,7 @@ export function FloatingTabBar({ tabs, activeKey, onSelect }: FloatingTabBarProp
 
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, Spacing.three) }]} pointerEvents="box-none">
-      <View style={[styles.bar, { borderColor: theme.border }]}>
+      <View accessibilityRole="tablist" style={[styles.bar, { borderColor: theme.border }]}>
         {tabs.map((tab) => {
           const active = tab.key === activeKey;
           return (
@@ -48,7 +48,9 @@ export function FloatingTabBar({ tabs, activeKey, onSelect }: FloatingTabBarProp
                 <Ionicons name={tab.icon} size={20} color={active ? theme.text : theme.textSecondary} />
                 {active ? (
                   <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(100)}>
-                    <ThemedText style={styles.label}>{tab.label}</ThemedText>
+                    <ThemedText style={styles.label} maxFontSizeMultiplier={1.3}>
+                      {tab.label}
+                    </ThemedText>
                   </Animated.View>
                 ) : null}
               </Animated.View>

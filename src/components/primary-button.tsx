@@ -40,7 +40,7 @@ export function PrimaryButton({ label, onPress, loading, disabled }: PrimaryButt
 
 const styles = StyleSheet.create({
   button: {
-    height: 54,
+    minHeight: 54,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

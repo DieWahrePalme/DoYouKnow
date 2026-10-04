@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   details: { height: 96, paddingTop: Spacing.three, textAlignVertical: 'top' },
   blockText: { marginBottom: Spacing.three },
   blockButton: {
-    height: 54,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

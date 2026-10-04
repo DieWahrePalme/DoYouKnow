@@ -8,6 +8,14 @@ import { useTheme } from '@/hooks/use-theme';
 
 export type StatusIcon = 'checkmark' | 'hourglass' | 'alert' | 'ellipse-outline';
 
+/** What each status icon means, for screen readers (the icon alone says nothing). */
+const STATUS_SPOKEN: Record<StatusIcon, string> = {
+  checkmark: 'Aufgelöst',
+  hourglass: 'Wartet auf die Antwort',
+  alert: 'Läuft bald ab, noch offen',
+  'ellipse-outline': 'Noch offen',
+};
+
 interface FriendRowProps {
   avatarEmoji: string;
   name: string;
@@ -38,12 +46,22 @@ export function FriendRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={[
+        name,
+        subtitle,
+        hideStreak ? null : `${streak} Tage Streak`,
+        statusIcon ? STATUS_SPOKEN[statusIcon] : null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
       style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.backgroundSelected }]}>
       <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
         <ThemedText style={styles.avatarEmoji}>{avatarEmoji}</ThemedText>
       </View>
       <View style={styles.info}>
-        <ThemedText style={styles.name}>{name}</ThemedText>
+        <ThemedText style={styles.name} maxFontSizeMultiplier={1.6}>
+          {name}
+        </ThemedText>
         {subtitle ? (
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
             {subtitle}

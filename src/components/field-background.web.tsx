@@ -35,7 +35,11 @@ export function FieldBackground() {
   const reduceMotion = useReduceMotion();
 
   return (
-    <View style={[StyleSheet.absoluteFill, styles.base]} pointerEvents="none">
+    <View
+      style={[StyleSheet.absoluteFill, styles.base]}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants">
       <WithSkiaWeb
         opts={{ locateFile: (file: string) => `${BASE_URL}/${file}` }}
         getComponent={() => import('@/components/field-canvas')}

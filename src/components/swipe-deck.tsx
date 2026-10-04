@@ -52,9 +52,12 @@ export function SwipeDeck({ questions, onComplete, header }: SwipeDeckProps) {
         <View style={styles.headerSlot}>{header}</View>
         <View
           style={[styles.counter, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+          accessible
           accessibilityLabel={`Noch ${remaining} von ${questions.length} Karten`}>
-          <ThemedText style={styles.counterNumber}>{remaining}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.counterLabel}>
+          <ThemedText style={styles.counterNumber} maxFontSizeMultiplier={1.3}>
+            {remaining}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.counterLabel} maxFontSizeMultiplier={1.3}>
             übrig
           </ThemedText>
         </View>

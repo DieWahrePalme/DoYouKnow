@@ -15,7 +15,10 @@ export function ScoreHero({ percent, caption }: ScoreHeroProps) {
   const theme = useTheme();
 
   return (
-    <View style={styles.wrap}>
+    <View
+      style={styles.wrap}
+      accessible
+      accessibilityLabel={percent === null ? `Noch kein Match. ${caption}` : `${percent} Prozent Match. ${caption}`}>
       <ThemedText style={styles.value}>{percent === null ? '–' : `${percent}%`}</ThemedText>
       <View style={[styles.track, { backgroundColor: theme.backgroundSelected }]}>
         <View style={[styles.fill, { backgroundColor: theme.primary, width: `${percent ?? 0}%` }]} />

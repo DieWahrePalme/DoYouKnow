@@ -32,7 +32,7 @@ export function SecondaryButton({ label, onPress, disabled }: SecondaryButtonPro
 
 const styles = StyleSheet.create({
   button: {
-    height: 54,
+    minHeight: 54,
     borderRadius: Radius.pill,
     borderWidth: 1,
     alignItems: 'center',

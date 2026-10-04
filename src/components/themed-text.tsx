@@ -3,6 +3,9 @@ import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 import { FontFamily, Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+/** Largest Dynamic Type scale the layout is built for; tight spots (tabs, chips, stats) set a lower cap. */
+const MAX_FONT_SCALE = 2;
+
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
   themeColor?: ThemeColor;
@@ -13,6 +16,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
   return (
     <Text
+      maxFontSizeMultiplier={MAX_FONT_SCALE}
       style={[
         { color: theme[themeColor ?? 'text'] },
         type === 'default' && styles.default,

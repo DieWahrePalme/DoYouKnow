@@ -17,7 +17,10 @@ import Animated, {
 import { ThemedText } from '@/components/themed-text';
 import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { AnswerValue, Question } from '@/types';
+import { ANSWER_LABELS, AnswerValue, Question } from '@/types';
+
+/** VoiceOver users answer through these custom actions (or the buttons below) instead of swiping. */
+const ACCESSIBILITY_ANSWERS: AnswerValue[] = ['yes', 'leanYes', 'leanNo', 'no', 'never'];
 
 const SWIPE_THRESHOLD = 90;
 const EXIT_DISTANCE = 700;
@@ -128,16 +131,16 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
     );
   }
 
-  useImperativeHandle(ref, () => ({
-    animateAnswer(value) {
-      if (value === 'never') {
-        playNever();
-        return;
-      }
-      const [x, y] = EXIT_TARGETS[value];
-      finish(value, x, y);
-    },
-  }));
+  function animateAnswer(value: AnswerValue) {
+    if (value === 'never') {
+      playNever();
+      return;
+    }
+    const [x, y] = EXIT_TARGETS[value];
+    finish(value, x, y);
+  }
+
+  useImperativeHandle(ref, () => ({ animateAnswer }));
 
   const pan = Gesture.Pan()
     .enabled(active)
@@ -238,22 +241,34 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View
+        // Only the top card is exposed to VoiceOver; the layers behind it are decoration.
+        accessible={active}
+        accessibilityElementsHidden={!active}
+        aria-hidden={!active}
+        importantForAccessibility={active ? 'yes' : 'no-hide-descendants'}
+        accessibilityLabel={question.text}
+        accessibilityHint="Mit Hoch- und Runterwischen eine Antwort wählen und doppeltippen, oder die Antwort-Buttons unter der Karte nutzen."
+        accessibilityActions={ACCESSIBILITY_ANSWERS.map((value) => ({ name: value, label: ANSWER_LABELS[value] }))}
+        onAccessibilityAction={(event) => {
+          const value = event.nativeEvent.actionName as AnswerValue;
+          if (ACCESSIBILITY_ANSWERS.includes(value)) animateAnswer(value);
+        }}
         style={[
           styles.card,
           { backgroundColor: theme.backgroundElement, borderColor: theme.border, zIndex: active ? 2 : 1 },
           cardStyle,
         ]}>
         <Animated.View style={[styles.stamp, styles.stampRight, styles.stampYes, yesStampStyle]}>
-          <ThemedText style={styles.stampText}>JA</ThemedText>
+          <ThemedText style={styles.stampText} maxFontSizeMultiplier={1.2}>JA</ThemedText>
         </Animated.View>
         <Animated.View style={[styles.stamp, styles.stampLeft, styles.stampNo, noStampStyle]}>
-          <ThemedText style={styles.stampText}>NEIN</ThemedText>
+          <ThemedText style={styles.stampText} maxFontSizeMultiplier={1.2}>NEIN</ThemedText>
         </Animated.View>
         <Animated.View style={[styles.stamp, styles.stampTop, styles.stampYes, leanYesStampStyle]}>
-          <ThemedText style={styles.stampText}>EHER JA</ThemedText>
+          <ThemedText style={styles.stampText} maxFontSizeMultiplier={1.2}>EHER JA</ThemedText>
         </Animated.View>
         <Animated.View style={[styles.stamp, styles.stampBottom, styles.stampNo, leanNoStampStyle]}>
-          <ThemedText style={styles.stampText}>EHER NEIN</ThemedText>
+          <ThemedText style={styles.stampText} maxFontSizeMultiplier={1.2}>EHER NEIN</ThemedText>
         </Animated.View>
         <Animated.View style={[styles.stamp, styles.stampCenter, styles.stampNever, neverStampStyle]} pointerEvents="none">
           <ThemedText style={[styles.stampText, { color: '#FFFFFF' }]}>NIE</ThemedText>
@@ -265,7 +280,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
           </ThemedText>
         </View>
         <View style={[styles.hintPill, { backgroundColor: theme.backgroundSelected }]}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.hint} maxFontSizeMultiplier={1.3}>
             Nie · 2× tippen
           </ThemedText>
         </View>

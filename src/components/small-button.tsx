@@ -25,6 +25,7 @@ export function SmallButton({ label, onPress, variant = 'neutral', icon, disable
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
+      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       style={({ pressed }) => [
@@ -36,7 +37,9 @@ export function SmallButton({ label, onPress, variant = 'neutral', icon, disable
       ) : (
         <>
           {icon ? <Ionicons name={icon} size={15} color={color} /> : null}
-          <ThemedText style={[styles.label, { color }]}>{label}</ThemedText>
+          <ThemedText style={[styles.label, { color }]} maxFontSizeMultiplier={1.5}>
+            {label}
+          </ThemedText>
         </>
       )}
     </Pressable>
@@ -49,7 +52,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    minHeight: 36,
+    minHeight: 40,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
   },

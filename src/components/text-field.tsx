@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FontFamily, Spacing } from '@/constants/theme';
+import { PLACEHOLDER_COLOR, FontFamily, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface TextFieldProps extends TextInputProps {
@@ -21,8 +21,9 @@ export function TextField({ label, error, style, onFocus, onBlur, ...rest }: Tex
         {label}
       </ThemedText>
       <TextInput
-        placeholderTextColor="#5E5E6C"
+        placeholderTextColor={PLACEHOLDER_COLOR}
         selectionColor={theme.primary}
+        maxFontSizeMultiplier={2}
         accessibilityLabel={label}
         onFocus={(event) => {
           setFocused(true);
@@ -36,7 +37,7 @@ export function TextField({ label, error, style, onFocus, onBlur, ...rest }: Tex
         {...rest}
       />
       {error ? (
-        <ThemedText type="small" themeColor="danger">
+        <ThemedText type="small" themeColor="danger" accessibilityRole="alert" accessibilityLiveRegion="polite">
           {error}
         </ThemedText>
       ) : null}
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   input: {
-    height: 54,
+    minHeight: 54,
     borderWidth: 1,
     borderRadius: 18,
     paddingHorizontal: Spacing.three,

@@ -7,6 +7,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { ANSWER_LABELS, AnswerMap, Question } from '@/types';
 import { formatPoints, guessOutcome, OUTCOME_ICONS, OUTCOME_POINTS } from '@/utils/guessScore';
 
+const OUTCOME_SPOKEN = { exact: 'Richtig', direction: 'Halb richtig', wrong: 'Falsch' } as const;
+
 interface ResultViewProps {
   subjectName: string;
   questions: Question[];
@@ -35,7 +37,10 @@ export function ResultView({ subjectName, questions, guesses, truth }: ResultVie
 
   return (
     <View style={styles.resultWrap}>
-      <View style={styles.score}>
+      <View
+        style={styles.score}
+        accessible
+        accessibilityLabel={`${formatPoints(points)} von ${questions.length} richtig geraten über ${subjectName}`}>
         <ThemedText style={styles.scoreValue}>
           {formatPoints(points)}/{questions.length}
         </ThemedText>
@@ -46,10 +51,13 @@ export function ResultView({ subjectName, questions, guesses, truth }: ResultVie
 
       <View style={[styles.list, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
         {questions.map((question, i) => {
-          const icon = OUTCOME_ICONS[guessOutcome(guesses[question.id], truth[question.id])];
+          const outcome = guessOutcome(guesses[question.id], truth[question.id]);
+          const icon = OUTCOME_ICONS[outcome];
           return (
             <View
               key={question.id}
+              accessible
+              accessibilityLabel={`${OUTCOME_SPOKEN[outcome]}. ${question.text}. Du: ${ANSWER_LABELS[guesses[question.id]]}, ${subjectName}: ${ANSWER_LABELS[truth[question.id]]}`}
               style={[styles.row, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
               <Ionicons name={icon.name} size={22} color={icon.color} />
               <View style={styles.rowText}>

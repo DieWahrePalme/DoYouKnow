@@ -12,7 +12,9 @@ interface AuthHeadingProps {
 export function AuthHeading({ title, subtitle }: AuthHeadingProps) {
   return (
     <View style={styles.wrap}>
-      <ThemedText style={styles.title}>{title}</ThemedText>
+      <ThemedText style={styles.title} accessibilityRole="header">
+        {title}
+      </ThemedText>
       {subtitle ? (
         <ThemedText themeColor="textSecondary" style={styles.subtitle}>
           {subtitle}

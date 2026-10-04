@@ -10,6 +10,9 @@ import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/state/authStore';
 
+/** Red with white text at >= 4.5:1 (the lighter danger tone is for text on dark, not for fills). */
+const DANGER_SOLID = '#CF2F4C';
+
 /** Typing this exact word unlocks the button - deleting is permanent, so one tap must never be enough. */
 const CONFIRM_WORD = 'LÖSCHEN';
 
@@ -72,7 +75,7 @@ export default function DeleteAccountScreen() {
         disabled={!enabled}
         accessibilityRole="button"
         accessibilityState={{ disabled: !enabled, busy: deleting }}
-        style={[styles.deleteButton, { backgroundColor: enabled ? theme.danger : theme.backgroundSelected }]}>
+        style={[styles.deleteButton, { backgroundColor: enabled ? DANGER_SOLID : theme.backgroundSelected }]}>
         <ThemedText style={[styles.deleteLabel, { color: enabled ? '#FFFFFF' : theme.textSecondary }]}>
           {deleting ? 'Lösche …' : 'Konto endgültig löschen'}
         </ThemedText>
@@ -91,7 +94,7 @@ const styles = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three },
   itemText: { flex: 1, fontSize: 15, lineHeight: 21 },
   deleteButton: {
-    height: 54,
+    minHeight: 54,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

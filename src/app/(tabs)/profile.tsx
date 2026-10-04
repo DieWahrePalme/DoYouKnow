@@ -26,8 +26,10 @@ import { formatRelative } from '@/utils/formatRelative';
 function StatColumn({ value, label, onPress }: { value: number; label: string; onPress?: () => void }) {
   const content = (
     <>
-      <ThemedText style={styles.statValue}>{value}</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel} numberOfLines={1}>
+      <ThemedText style={styles.statValue} maxFontSizeMultiplier={1.2}>
+        {value}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel} numberOfLines={1} maxFontSizeMultiplier={1.2}>
         {label}
       </ThemedText>
     </>
@@ -35,12 +37,21 @@ function StatColumn({ value, label, onPress }: { value: number; label: string; o
 
   if (onPress) {
     return (
-      <Pressable style={styles.statColumn} onPress={onPress}>
+      <Pressable
+        style={styles.statColumn}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${value} ${label}`}
+        hitSlop={8}>
         {content}
       </Pressable>
     );
   }
-  return <View style={styles.statColumn}>{content}</View>;
+  return (
+    <View style={styles.statColumn} accessible accessibilityLabel={`${value} ${label}`}>
+      {content}
+    </View>
+  );
 }
 
 function CategoryChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
@@ -50,6 +61,7 @@ function CategoryChip({ label, active, onPress }: { label: string; active: boole
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      hitSlop={{ top: 4, bottom: 4 }}
       style={[
         styles.chip,
         {
@@ -57,7 +69,7 @@ function CategoryChip({ label, active, onPress }: { label: string; active: boole
           borderColor: active ? theme.primary : theme.border,
         },
       ]}>
-      <ThemedText type="smallBold" style={{ color: active ? theme.primaryText : theme.text }}>
+      <ThemedText type="smallBold" maxFontSizeMultiplier={1.4} style={{ color: active ? theme.primaryText : theme.text }}>
         {label}
       </ThemedText>
     </Pressable>
@@ -92,6 +104,15 @@ function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean 
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: group.id } })}
+      accessibilityRole="button"
+      accessibilityLabel={[
+        group.name,
+        caption,
+        isToday ? 'heute dran' : null,
+        waitingCount > 0 ? `${waitingCount} warten auf deine Antworten` : null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
       style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       {isToday ? (
         <View style={[styles.todayBadge, { backgroundColor: theme.primary }]}>
@@ -104,10 +125,10 @@ function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean 
         </View>
       ) : null}
       <ThemedText style={styles.tileIcon}>{group.icon}</ThemedText>
-      <ThemedText type="smallBold" style={styles.tileName} numberOfLines={1}>
+      <ThemedText type="smallBold" style={styles.tileName} numberOfLines={1} maxFontSizeMultiplier={1.3}>
         {group.name}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" maxFontSizeMultiplier={1.3}>
         {caption}
       </ThemedText>
     </Pressable>
@@ -120,7 +141,7 @@ const SKELETON_TILES = 12;
 /** Placeholder tiles shown for the first frame(s) while the real grid mounts. */
 function SkeletonGrid() {
   return (
-    <View style={styles.skeletonGrid}>
+    <View style={styles.skeletonGrid} accessible accessibilityLabel="Themen werden geladen">
       {Array.from({ length: SKELETON_TILES }, (_, i) => (
         <Skeleton key={i} style={styles.skeletonTile} />
       ))}
@@ -168,7 +189,7 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <ThemedText style={styles.username} numberOfLines={1}>
+      <ThemedText style={styles.username} numberOfLines={1} accessibilityRole="header" maxFontSizeMultiplier={1.5}>
         {profile.name}
       </ThemedText>
 

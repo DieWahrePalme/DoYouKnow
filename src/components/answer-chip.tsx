@@ -23,9 +23,11 @@ export function AnswerChip({ value }: AnswerChipProps) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.chip, { backgroundColor: theme.backgroundSelected }]}>
+    <View accessible accessibilityLabel={ANSWER_LABELS[value]} style={[styles.chip, { backgroundColor: theme.backgroundSelected }]}>
       <Ionicons name={ANSWER_ICONS[value]} size={14} color={theme.text} />
-      <ThemedText style={styles.label}>{ANSWER_LABELS[value]}</ThemedText>
+      <ThemedText style={styles.label} maxFontSizeMultiplier={1.4}>
+        {ANSWER_LABELS[value]}
+      </ThemedText>
     </View>
   );
 }

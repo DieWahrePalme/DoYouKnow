@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: Spacing.four,
-    height: 48,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

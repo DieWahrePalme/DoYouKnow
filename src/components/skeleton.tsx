@@ -30,5 +30,11 @@ export function Skeleton({ style }: SkeletonProps) {
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: 0.45 + pulse.value * 0.4 }));
 
-  return <Animated.View style={[{ backgroundColor: theme.backgroundSelected }, style, animatedStyle]} />;
+  return (
+    <Animated.View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[{ backgroundColor: theme.backgroundSelected }, style, animatedStyle]}
+    />
+  );
 }

@@ -71,6 +71,21 @@ hairline dividers), `ListRow`, `Avatar`, `SmallButton`, `IconButton`, `EmptyStat
 - `SwipeDeck` progress: 5 segment bars instead of a caption.
 - `GuessHeader`: story-style avatar ring, "Du rätst für X", topic as hero title.
 
+## Accessibility
+
+- **Contrast:** all text >= 4.5:1. Accent `#6A5AF9` (white text 4.7:1), delete button fill `#CF2F4C`,
+  placeholders `#85859A`. `textSecondary` is 5.1-6.1:1 on every surface.
+- **Dynamic Type:** `ThemedText` caps scaling at 2x; tight spots (tab label, counter, stats, chips,
+  answer-button labels) cap lower (1.2-1.5x). Buttons/fields use `minHeight`, never a fixed `height`.
+- **Tap targets:** >= 44 pt effective (icon buttons 40 + hit slop, tabs 48, answer buttons 60).
+- **VoiceOver:** every icon-only control has a label; headers have the header role; the swipe card
+  exposes only the top card and offers Ja / Eher ja / Eher nein / Nein / Nie as custom actions
+  (swipe up/down, double-tap) next to the answer buttons; status/outcome icons are spoken
+  ("Richtig", "Halb richtig", "Aufgelöst", ...); the animated background and skeletons are hidden.
+- **Motion:** background freezes and the skeleton stops pulsing with Reduce Motion.
+- **Still to verify by hand on a device:** a VoiceOver walkthrough of the daily loop and Settings >
+  Accessibility > Display & Text Size > Larger Text at the largest setting.
+
 ## Platform note
 
 The product is an iPhone app. The web build only exists so the UI can be checked in a browser
@@ -94,4 +109,5 @@ the screens with fake data. Screenshots for review: Playwright at 393×852 again
 - [x] Home (top bar, hero card, grouped friends), Profil (one-line header), Match + Favoriten (restyled)
 - [x] Auth (welcome, intro, login, register, forgot password), guess/overview/result screens
 - [x] Friends, add-friend, friend-requests, settings (+ all subpages), safety, match detail, privacy policy
-- [ ] Open: on-device check in Expo Go, a11y pass (VoiceOver/Dynamic Type)
+- [x] Accessibility pass (code level, see below)
+- [ ] Open: on-device check in Expo Go incl. a real VoiceOver + Larger Text run

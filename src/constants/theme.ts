@@ -17,7 +17,7 @@ const dark = {
   backgroundElement: '#14141A',
   backgroundSelected: '#1D1D26',
   textSecondary: '#8D8D9B',
-  primary: '#7B6CFF',
+  primary: '#6A5AF9',
   primaryText: '#FFFFFF',
   border: '#24242E',
   success: '#3DDC97',
@@ -32,6 +32,9 @@ export const FieldColors = {
   blue: '#2F6BFF',
   violet: '#8A5CFF',
 } as const;
+
+/** Readable placeholder colour on the dark surfaces (>= 4.5:1). */
+export const PLACEHOLDER_COLOR = '#85859A';
 
 /** Gradient stops for hero surfaces (kept for primary CTA fallbacks). */
 export const PrimaryGradient = ['#4F7BFF', '#8A5CFF'] as const;

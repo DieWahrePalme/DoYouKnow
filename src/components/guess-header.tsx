@@ -17,16 +17,16 @@ export function GuessHeader({ avatarEmoji, kicker, topicName }: GuessHeaderProps
 
   return (
     <View style={styles.row}>
-      <LinearGradient colors={PrimaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ring}>
+      <LinearGradient accessibilityElementsHidden importantForAccessibility="no-hide-descendants" colors={PrimaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ring}>
         <View style={[styles.avatar, { backgroundColor: theme.backgroundElement, borderColor: theme.background }]}>
           <ThemedText style={styles.emoji}>{avatarEmoji}</ThemedText>
         </View>
       </LinearGradient>
       <View style={styles.text}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.kicker} numberOfLines={1}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.kicker} numberOfLines={1} maxFontSizeMultiplier={1.5}>
           {kicker}
         </ThemedText>
-        <ThemedText style={styles.topic} numberOfLines={1}>
+        <ThemedText style={styles.topic} numberOfLines={1} accessibilityRole="header" maxFontSizeMultiplier={1.5}>
           {topicName}
         </ThemedText>
       </View>

@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   profileName: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.6, color: '#F5F5F7' },
   signOut: {
     marginTop: Spacing.three,
-    height: 54,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

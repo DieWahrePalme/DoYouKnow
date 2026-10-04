@@ -54,7 +54,9 @@ function TopBar() {
         <Ionicons name="mail-outline" size={20} color={theme.text} />
         {requestCount > 0 ? (
           <View style={[styles.badge, { backgroundColor: theme.primary }]}>
-            <ThemedText style={styles.badgeText}>{requestCount}</ThemedText>
+            <ThemedText style={styles.badgeText} maxFontSizeMultiplier={1.2}>
+              {requestCount}
+            </ThemedText>
           </View>
         ) : null}
       </Pressable>
@@ -129,14 +131,14 @@ function TodaysCard() {
         { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
       ]}>
       <View style={styles.heroTop}>
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" themeColor="textSecondary" accessibilityRole="header">
           Deine Karte heute
         </ThemedText>
         <View style={[styles.heroAvatar, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText style={styles.heroAvatarEmoji}>{profile.avatarEmoji}</ThemedText>
         </View>
       </View>
-      <ThemedText style={styles.heroTitle} numberOfLines={2}>
+      <ThemedText style={styles.heroTitle} numberOfLines={3} maxFontSizeMultiplier={1.4}>
         {now ? todaysGroup.name : 'Lädt …'}
       </ThemedText>
       <View style={[styles.heroAction, { backgroundColor: theme.primary }]}>
@@ -224,7 +226,7 @@ export default function HomeScreen() {
 
               <TodaysCard />
 
-              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel} accessibilityRole="header">
                 Freunde
               </ThemedText>
             </>
@@ -260,7 +262,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    height: 48,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
@@ -345,7 +347,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    height: 48,
+    minHeight: 48,
     borderRadius: Radius.pill,
   },
   sectionLabel: {
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
   },
   challengePill: {
     marginTop: Spacing.three,
-    height: 48,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
