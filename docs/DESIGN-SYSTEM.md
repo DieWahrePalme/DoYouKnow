@@ -51,6 +51,13 @@ Scale: title 44/48, subtitle 28/33, question 32/37, body 16/24, small 14/20, cap
 Stack screens keep the look of the tab they were opened from; switching tabs
 cross-fades the colours/density over 700 ms. Intensity is deliberately low (~0.35).
 
+## Shared building blocks
+
+`Screen` (title + scrolling column), `GroupedCard` / `GroupedListItem` (rounded card of rows with
+hairline dividers), `ListRow`, `Avatar`, `SmallButton`, `IconButton`, `EmptyState`, `ScoreHero`,
+`SectionLabel`, `AnswerChip`, `PrimaryButton` (solid accent pill), `SecondaryButton` (outlined pill),
+`TextField`. New screens should be built from these, not from raw views.
+
 ## Components
 
 - `FieldBackground` (`field-background.tsx`, `.web.tsx`, `field-canvas.tsx`): Skia
@@ -75,4 +82,5 @@ the screens with fake data. Screenshots for review: Playwright at 393×852 again
 - [x] Tokens, fonts, icon family, background, tab bar, guess screen (card, buttons, header)
 - [x] Home (top bar, hero card, grouped friends), Profil (one-line header), Match + Favoriten (restyled)
 - [x] Auth (welcome, intro, login, register, forgot password), guess/overview/result screens
-- [ ] Friends, settings (+ subpages), add-friend, friend-requests, match detail, privacy
+- [x] Friends, add-friend, friend-requests, settings (+ all subpages), safety, match detail, privacy policy
+- [ ] Open: on-device check in Expo Go, a11y pass (VoiceOver/Dynamic Type), Pages export check

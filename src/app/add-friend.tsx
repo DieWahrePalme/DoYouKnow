@@ -1,17 +1,21 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { TextField } from '@/components/text-field';
+import { AuthHeading } from '@/components/auth-heading';
+import { Avatar } from '@/components/avatar';
+import { EmptyState } from '@/components/empty-state';
+import { GroupedListItem } from '@/components/grouped-list-item';
+import { SmallButton } from '@/components/small-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useFriendsStore } from '@/state/friendsStore';
 import { UserProfile } from '@/types';
 
 function ResultRow({ user }: { user: UserProfile }) {
-  const theme = useTheme();
   const outgoingPendingIds = useFriendsStore((state) => state.outgoingPendingIds);
   const sendRequest = useFriendsStore((state) => state.sendRequest);
   const [sending, setSending] = useState(false);
@@ -24,24 +28,22 @@ function ResultRow({ user }: { user: UserProfile }) {
   }
 
   return (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText style={styles.rowEmoji}>{user.avatarEmoji}</ThemedText>
-      <ThemedText type="default" style={styles.rowName}>
+    <View style={styles.row}>
+      <Avatar emoji={user.avatarEmoji} />
+      <ThemedText style={styles.rowName} numberOfLines={1}>
         {user.name}
       </ThemedText>
-      <Pressable
-        onPress={handleSend}
-        disabled={sending || alreadySent}
-        style={[styles.sendButton, { backgroundColor: alreadySent ? theme.backgroundSelected : theme.primary }]}>
-        <ThemedText type="smallBold" style={{ color: alreadySent ? theme.textSecondary : '#FFFFFF' }}>
-          {alreadySent ? 'Angefragt' : sending ? '…' : 'Hinzufügen'}
-        </ThemedText>
-      </Pressable>
+      {alreadySent ? (
+        <SmallButton label="Angefragt" icon="checkmark" onPress={() => {}} disabled />
+      ) : (
+        <SmallButton label="Hinzufügen" icon="person-add-outline" variant="primary" onPress={handleSend} loading={sending} />
+      )}
     </View>
   );
 }
 
 export default function AddFriendScreen() {
+  const theme = useTheme();
   const [query, setQuery] = useState('');
   const searchResults = useFriendsStore((state) => state.searchResults);
   const searchLoading = useFriendsStore((state) => state.searchLoading);
@@ -53,38 +55,72 @@ export default function AddFriendScreen() {
     searchUsers(value);
   }
 
+  const hasQuery = query.trim().length > 0;
+
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="subtitle" style={styles.heading}>
-          Freunde hinzufügen
-        </ThemedText>
-        <TextField
-          label="Benutzername suchen"
-          value={query}
-          onChangeText={handleChange}
-          autoCapitalize="none"
-          autoFocus
-          placeholder="z.B. momo_23"
-        />
-        {error ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            {error}
-          </ThemedText>
-        ) : null}
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           style={styles.list}
-          data={searchResults}
+          data={hasQuery ? searchResults : []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          renderItem={({ item }) => <ResultRow user={item} />}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <AuthHeading title="Freunde hinzufügen" subtitle="Such nach dem Benutzernamen deiner Freunde." />
+              <View style={[styles.search, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                <Ionicons name="search" size={18} color={theme.textSecondary} />
+                <TextInput
+                  value={query}
+                  onChangeText={handleChange}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus
+                  placeholder="z. B. momo_23"
+                  placeholderTextColor="#5E5E6C"
+                  selectionColor={theme.primary}
+                  accessibilityLabel="Benutzername suchen"
+                  returnKeyType="search"
+                  style={[styles.searchInput, { color: theme.text }]}
+                />
+                {searchLoading ? (
+                  <ActivityIndicator size="small" color={theme.textSecondary} />
+                ) : hasQuery ? (
+                  <Pressable onPress={() => handleChange('')} accessibilityRole="button" accessibilityLabel="Suche leeren" hitSlop={10}>
+                    <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+                  </Pressable>
+                ) : null}
+              </View>
+              {error ? (
+                <ThemedText type="small" themeColor="danger">
+                  {error}
+                </ThemedText>
+              ) : null}
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <GroupedListItem index={index} count={searchResults.length}>
+              <ResultRow user={item} />
+            </GroupedListItem>
+          )}
           ListEmptyComponent={
-            !searchLoading && query.trim().length > 0 ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                Niemand mit diesem Benutzernamen gefunden.
-              </ThemedText>
-            ) : null
+            hasQuery ? (
+              searchLoading ? null : (
+                <EmptyState
+                  icon="search-outline"
+                  title="Niemand gefunden"
+                  body="Prüf die Schreibweise – Benutzernamen bestehen nur aus a–z, Zahlen und _."
+                />
+              )
+            ) : (
+              <EmptyState
+                icon="person-add-outline"
+                title="Wer fehlt noch?"
+                body="Gib den Benutzernamen ein. Sobald deine Freundin oder dein Freund die Anfrage annimmt, könnt ihr loslegen."
+              />
+            )
           }
         />
       </SafeAreaView>
@@ -93,52 +129,33 @@ export default function AddFriendScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    gap: Spacing.three,
-  },
-  heading: {
-    alignSelf: 'flex-start',
-  },
-  list: {
-    width: '100%',
-  },
-  listContent: {
-    gap: Spacing.one,
-  },
-  separator: {
-    height: Spacing.one,
-  },
-  row: {
+  container: { flex: 1 },
+  safeArea: { flex: 1, alignItems: 'center' },
+  list: { flex: 1, width: '100%', maxWidth: MaxContentWidth },
+  listContent: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.five },
+  header: { gap: Spacing.three, marginBottom: Spacing.three },
+  search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  rowEmoji: {
-    fontSize: 26,
-    lineHeight: 32,
-  },
-  rowName: {
-    flex: 1,
-  },
-  sendButton: {
-    paddingVertical: Spacing.one,
+    height: 52,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.four,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  empty: {
-    textAlign: 'center',
-    marginTop: Spacing.four,
+  searchInput: {
+    flex: 1,
+    fontFamily: FontFamily.body,
+    fontSize: 16,
+    height: '100%',
+    outlineStyle: 'none',
+  } as object,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.three,
   },
+  rowName: { flex: 1, fontFamily: FontFamily.bodySemi, fontSize: 16, lineHeight: 22 },
 });

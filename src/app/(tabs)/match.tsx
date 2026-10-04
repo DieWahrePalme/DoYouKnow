@@ -3,6 +3,8 @@ import { FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
+import { EmptyState } from '@/components/empty-state';
+import { GroupedListItem } from '@/components/grouped-list-item';
 import { ListRow } from '@/components/list-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -55,7 +57,6 @@ export default function MatchScreen() {
           data={friends.length ? ranked : []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
           ListHeaderComponent={
             <>
               <ThemedText type="title" style={styles.heading}>
@@ -66,7 +67,18 @@ export default function MatchScreen() {
               </ThemedText>
             </>
           }
-          renderItem={({ item }) => <MatchRow friend={item} />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="git-compare-outline"
+              title="Noch keine Freunde"
+              body="Sobald du Freunde hast, siehst du hier, wie ähnlich eure Antworten sind."
+            />
+          }
+          renderItem={({ item, index }) => (
+            <GroupedListItem index={index} count={ranked.length}>
+              <MatchRow friend={item} />
+            </GroupedListItem>
+          )}
         />
       </SafeAreaView>
     </ThemedView>

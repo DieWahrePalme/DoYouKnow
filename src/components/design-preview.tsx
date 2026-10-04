@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import FavoritesScreen from '@/app/(tabs)/favorites';
@@ -28,7 +28,21 @@ export function useSeededPreviewStore(): boolean {
   useEffect(() => {
     if (!__DEV__) return;
     // No Supabase session here: keep the fake users instead of letting a fetch replace them.
-    useFriendsStore.setState({ fetchAll: async () => {} });
+    const lea = { id: 'lea', name: 'Lea', avatarEmoji: '🦋' };
+    const mia = { id: 'mia', name: 'mia_k', avatarEmoji: '🌸' };
+    const ben = { id: 'ben', name: 'benji', avatarEmoji: '🐼' };
+    useFriendsStore.setState({
+      fetchAll: async () => {},
+      fetchBlocked: async () => {},
+      searchUsers: async () => {},
+      incomingRequests: [
+        { friendshipId: 'r1', from: mia },
+        { friendshipId: 'r2', from: ben },
+      ],
+      blockedUsers: [{ id: 'x', name: 'spam_bot', avatarEmoji: '🤖' }],
+      outgoingPendingIds: ['lea'],
+      searchResults: [lea, mia, ben],
+    });
     useAppStore.setState({
       resetForSignOut: () => {},
       users: {
@@ -39,6 +53,23 @@ export function useSeededPreviewStore(): boolean {
       },
       activeUserId: 'me',
     });
+    // Same answers for me and Tom on the first groups, so Match has something to show.
+    const { groups } = useAppStore.getState();
+    const at = new Date().toISOString();
+    const values = ['yes', 'leanNo', 'leanYes', 'no', 'yes'] as const;
+    const history: Record<string, Record<string, Record<string, { value: (typeof values)[number]; at: string }[]>>> = {
+      me: {},
+      tom: {},
+    };
+    groups.slice(0, 6).forEach((group, g) => {
+      history.me[group.id] = {};
+      history.tom[group.id] = {};
+      group.questions.forEach((q, i) => {
+        history.me[group.id][q.id] = [{ value: values[i], at }];
+        history.tom[group.id][q.id] = [{ value: (g + i) % 3 === 0 ? values[(i + 1) % 5] : values[i], at }];
+      });
+    });
+    useAppStore.setState({ history });
     setSeeded(true);
   }, []);
 
@@ -91,4 +122,11 @@ export function DesignPreviewScreen({ screen }: { screen: keyof typeof SCREENS }
       />
     </View>
   );
+}
+
+/** Dev-only: renders any screen component after seeding fake users (query params still reach the screen). */
+export function SeededScreen({ children }: { children: ReactNode }) {
+  const seeded = useSeededPreviewStore();
+  if (!__DEV__) return <Redirect href="/" />;
+  return seeded ? <>{children}</> : null;
 }

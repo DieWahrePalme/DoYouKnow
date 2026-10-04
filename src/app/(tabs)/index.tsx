@@ -7,6 +7,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { CountdownTimer } from '@/components/countdown-timer';
 import { FriendRow, StatusIcon } from '@/components/friend-row';
+import { GroupedListItem } from '@/components/grouped-list-item';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing, ThemeColor } from '@/constants/theme';
@@ -230,15 +231,9 @@ export default function HomeScreen() {
           }
           ListFooterComponent={<ChallengeCard />}
           renderItem={({ item, index }) => (
-            <View
-              style={[
-                styles.groupRow,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                index === 0 && styles.groupFirst,
-                index === friends.length - 1 && styles.groupLast,
-              ]}>
+            <GroupedListItem index={index} count={friends.length}>
               <FriendListItem friend={item} />
-            </View>
+            </GroupedListItem>
           )}
         />
       </SafeAreaView>
@@ -360,21 +355,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontSize: 12,
-  },
-  groupRow: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
-  groupFirst: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopLeftRadius: Radius.card,
-    borderTopRightRadius: Radius.card,
-  },
-  groupLast: {
-    borderBottomLeftRadius: Radius.card,
-    borderBottomRightRadius: Radius.card,
   },
   challengePill: {
     marginTop: Spacing.three,
