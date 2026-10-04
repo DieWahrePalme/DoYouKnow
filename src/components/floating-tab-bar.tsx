@@ -39,10 +39,10 @@ export function FloatingTabBar({ tabs, pathname, onSelect }: FloatingTabBarProps
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
               onPress={() => onSelect(tab.href)}
-              style={[styles.tab, active && { backgroundColor: theme.primary }]}>
-              <Ionicons name={tab.icon} size={20} color={active ? theme.primaryText : theme.textSecondary} />
+              style={[styles.tab, active && { backgroundColor: theme.backgroundSelected }]}>
+              <Ionicons name={tab.icon} size={20} color={active ? theme.text : theme.textSecondary} />
               {active ? (
-                <ThemedText style={styles.label} themeColor="primaryText">
+                <ThemedText style={styles.label}>
                   {tab.label}
                 </ThemedText>
               ) : null}
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: Radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(20,20,26,0.92)',
+    backgroundColor: 'rgba(20,20,26,0.94)',
   },
   tab: {
     flexDirection: 'row',

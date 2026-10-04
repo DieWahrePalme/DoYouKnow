@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -5,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { CATEGORIES } from '@/data/mockData';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
@@ -23,10 +24,8 @@ import { formatRelative } from '@/utils/formatRelative';
 function StatColumn({ value, label, onPress }: { value: number; label: string; onPress?: () => void }) {
   const content = (
     <>
-      <ThemedText type="subtitle" style={styles.statValue}>
-        {value}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText style={styles.statValue}>{value}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel} numberOfLines={1}>
         {label}
       </ThemedText>
     </>
@@ -42,27 +41,21 @@ function StatColumn({ value, label, onPress }: { value: number; label: string; o
   return <View style={styles.statColumn}>{content}</View>;
 }
 
-function CategoryChip({
-  icon,
-  label,
-  active,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+function CategoryChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
       style={[
         styles.chip,
-        { backgroundColor: active ? theme.primary : theme.backgroundElement },
+        {
+          backgroundColor: active ? theme.primary : 'transparent',
+          borderColor: active ? theme.primary : theme.border,
+        },
       ]}>
-      <ThemedText style={styles.chipIcon}>{icon}</ThemedText>
-      <ThemedText type="smallBold" style={{ color: active ? '#FFFFFF' : theme.text }}>
+      <ThemedText type="smallBold" style={{ color: active ? theme.primaryText : theme.text }}>
         {label}
       </ThemedText>
     </Pressable>
@@ -97,9 +90,9 @@ function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean 
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: group.id } })}
-      style={[styles.tile, { backgroundColor: theme.backgroundElement }]}>
+      style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       {isToday ? (
-        <View style={[styles.todayBadge, { backgroundColor: theme.background, borderColor: theme.text }]}>
+        <View style={[styles.todayBadge, { backgroundColor: theme.primary }]}>
           <ThemedText style={styles.todayBadgeText}>Heute</ThemedText>
         </View>
       ) : null}
@@ -137,22 +130,8 @@ export default function ProfileScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-          <View style={styles.topBar}>
-            <View style={styles.topBarSpacer} />
-            <Pressable
-              onPress={() => router.push('/settings')}
-              hitSlop={12}
-              style={[styles.menuButton, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText style={styles.menuIcon}>☰</ThemedText>
-            </Pressable>
-          </View>
-
-          <ThemedText type="small" themeColor="textSecondary" style={styles.username}>
-            {profile.name}
-          </ThemedText>
-
           <View style={styles.headerRow}>
-            <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
+            <View style={[styles.avatar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
               <ThemedText style={styles.avatarEmoji}>{profile.avatarEmoji}</ThemedText>
             </View>
 
@@ -161,14 +140,29 @@ export default function ProfileScreen() {
               <StatColumn value={answeredCount} label="Beantwortet" />
               <StatColumn value={collectedCount} label="Gesammelt" />
             </View>
+
+            <Pressable
+              onPress={() => router.push('/settings')}
+              accessibilityRole="button"
+              accessibilityLabel="Einstellungen"
+              style={[styles.menuButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <Ionicons name="menu" size={22} color={theme.text} />
+            </Pressable>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
-            <CategoryChip icon="✨" label="Alle" active={activeCategory === null} onPress={() => setActiveCategory(null)} />
+          <ThemedText style={styles.username} numberOfLines={1}>
+            {profile.name}
+          </ThemedText>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipRow}
+            contentContainerStyle={styles.chipRowContent}>
+            <CategoryChip label="Alle" active={activeCategory === null} onPress={() => setActiveCategory(null)} />
             {CATEGORIES.map((category) => (
               <CategoryChip
                 key={category.id}
-                icon={category.icon}
                 label={category.name}
                 active={activeCategory === category.id}
                 onPress={() => setActiveCategory(category.id)}
@@ -202,77 +196,75 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.three,
-  },
-  topBarSpacer: {
-    flex: 1,
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuIcon: {
-    fontSize: 18,
-  },
-  username: {
-    marginTop: Spacing.two,
+    paddingBottom: BottomTabInset + Spacing.four,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.four,
-    marginTop: Spacing.one,
+    gap: Spacing.three,
+    marginTop: Spacing.four,
   },
   avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarEmoji: {
-    fontSize: 38,
-    lineHeight: 48,
+    fontSize: 32,
+    lineHeight: 40,
   },
   stats: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
   },
   statColumn: {
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
   },
   statValue: {
-    fontSize: 20,
-    lineHeight: 24,
+    fontFamily: FontFamily.display,
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.5,
+    color: '#F5F5F7',
+  },
+  statLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  username: {
+    fontFamily: FontFamily.display,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.8,
+    color: '#F5F5F7',
+    marginTop: Spacing.three,
   },
   chipRow: {
-    marginTop: Spacing.four,
+    marginTop: Spacing.three,
+    marginHorizontal: -Spacing.three,
   },
   chipRowContent: {
     gap: Spacing.two,
-    paddingRight: Spacing.three,
+    paddingHorizontal: Spacing.three,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.five,
-  },
-  chipIcon: {
-    fontSize: 15,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
   grid: {
     flexDirection: 'row',
@@ -281,9 +273,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
   },
   tile: {
-    width: '31%',
+    width: '31.5%',
     aspectRatio: 1,
-    borderRadius: Spacing.three,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
@@ -291,37 +284,40 @@ const styles = StyleSheet.create({
   },
   tileBadge: {
     position: 'absolute',
-    top: Spacing.one,
-    right: Spacing.one,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: Spacing.two,
+    right: Spacing.two,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
   tileBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    lineHeight: 14,
   },
   todayBadge: {
     position: 'absolute',
-    top: Spacing.one,
-    left: Spacing.one,
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    top: Spacing.two,
+    left: Spacing.two,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   todayBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    lineHeight: 13,
+    color: '#FFFFFF',
   },
   tileIcon: {
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 28,
+    lineHeight: 34,
   },
   tileName: {
     textAlign: 'center',
+    fontSize: 13,
   },
 });

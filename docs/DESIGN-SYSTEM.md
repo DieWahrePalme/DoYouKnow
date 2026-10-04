@@ -39,6 +39,18 @@ Scale: title 44/48, subtitle 28/33, question 32/37, body 16/24, small 14/20, cap
 **Icons:** one family, Ionicons (`@expo/vector-icons`). No emojis as UI icons.
 (User avatars and topic icons are user/content data and stay emoji for now.)
 
+## Background looks per tab (`src/constants/field-variants.ts`)
+
+| Tab | Look |
+|---|---|
+| Heute | blue/violet, soft "water" (halo around the lines) |
+| Match | red, crisp thin topographic lines |
+| Favoriten | teal/blue water |
+| Profil | magenta/violet lines |
+
+Stack screens keep the look of the tab they were opened from; switching tabs
+cross-fades the colours/density over 700 ms. Intensity is deliberately low (~0.35).
+
 ## Components
 
 - `FieldBackground` (`field-background.tsx`, `.web.tsx`, `field-canvas.tsx`): Skia
@@ -54,11 +66,12 @@ Scale: title 44/48, subtitle 28/33, question 32/37, body 16/24, small 14/20, cap
 
 ## Previewing without a login
 
-Dev only: `/design-preview` (redirects away outside `__DEV__`) renders the guess
-screen with fake data. Screenshots for review: Playwright at 393×852 against
+Dev only: `/design-preview/{guess,home,match,favorites,profile}` (redirect away outside `__DEV__`) render
+the screens with fake data. Screenshots for review: Playwright at 393×852 against
 `npx expo start --port 8081` (web).
 
 ## Status
 
 - [x] Tokens, fonts, icon family, background, tab bar, guess screen (card, buttons, header)
-- [ ] Home, Match, Favoriten, Profil, friends, settings, auth, result view
+- [x] Home (top bar, hero card, grouped friends), Profil (one-line header), Match + Favoriten (restyled)
+- [ ] Friends, settings, auth (still opaque), result view, add-friend, friend-requests, match detail

@@ -1,9 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
@@ -25,7 +26,7 @@ function FavoriteRow({ item }: { item: FavoriteItem }) {
   const question = group.questions.find((q) => q.id === item.questionId);
 
   return (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+    <View style={[styles.row, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       <ThemedText style={styles.rowIcon}>{group.icon}</ThemedText>
       <View style={styles.rowText}>
         <ThemedText type="small">{question?.text}</ThemedText>
@@ -34,8 +35,12 @@ function FavoriteRow({ item }: { item: FavoriteItem }) {
           {now ? ` · ${formatRelative(item.likedAt, now)}` : ''}
         </ThemedText>
       </View>
-      <Pressable onPress={() => toggleFavorite(item.friendId, item.groupId, item.questionId)}>
-        <ThemedText style={styles.heart}>❤️</ThemedText>
+      <Pressable
+        onPress={() => toggleFavorite(item.friendId, item.groupId, item.questionId)}
+        accessibilityRole="button"
+        accessibilityLabel="Aus Favoriten entfernen"
+        hitSlop={10}>
+        <Ionicons name="heart" size={24} color={theme.danger} />
       </Pressable>
     </View>
   );
@@ -68,9 +73,12 @@ export default function FavoritesScreen() {
             </>
           }
           ListEmptyComponent={
-            <ThemedText type="default" themeColor="textSecondary" style={styles.empty}>
-              Noch nichts geliked. Öffne "Match" bei einem Freund und markiere gemeinsame Antworten mit ❤️.
-            </ThemedText>
+            <View style={styles.empty}>
+              <Ionicons name="heart-outline" size={40} color="#8D8D9B" />
+              <ThemedText type="default" themeColor="textSecondary" style={styles.emptyText}>
+                Noch nichts geliked. Öffne „Match“ bei einem Freund und markiere gemeinsame Antworten mit dem Herz.
+              </ThemedText>
+            </View>
           }
           renderItem={({ item }) => <FavoriteRow item={item} />}
         />
@@ -94,17 +102,18 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.one,
     flexGrow: 1,
   },
   heading: {
-    fontSize: 32,
-    lineHeight: 40,
-    marginTop: Spacing.four,
+    fontSize: 38,
+    lineHeight: 42,
+    marginTop: Spacing.five,
   },
   subheading: {
-    marginBottom: Spacing.three,
+    marginTop: Spacing.one,
+    marginBottom: Spacing.four,
   },
   separator: {
     height: Spacing.one,
@@ -114,7 +123,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   rowIcon: {
     fontSize: 22,
@@ -127,7 +137,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   empty: {
-    textAlign: 'center',
+    alignItems: 'center',
+    gap: Spacing.three,
     marginTop: Spacing.six,
+    paddingHorizontal: Spacing.four,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontFamily: FontFamily.body,
   },
 });

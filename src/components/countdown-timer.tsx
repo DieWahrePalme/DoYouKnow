@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { msUntilNextDay, useAppStore } from '@/state/appStore';
 
@@ -50,41 +51,44 @@ export function CountdownTimer() {
   }
 
   const resetLabel = {
-    idle: '🧪 Heute zurücksetzen',
+    idle: 'Test: Heute zurücksetzen',
     confirming: 'Wirklich? Nochmal tippen',
     resetting: 'Setze zurück …',
-    done: '✓ Zurückgesetzt',
+    done: 'Zurückgesetzt',
   }[resetState];
 
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText type="smallBold">
-        ⏳ {nowMs === null ? 'Neue Themen bald' : `Neue Themen in ${formatCountdown(msUntilNextDay(new Date(nowMs)))}`}
-      </ThemedText>
+    <View style={styles.wrap}>
+      <View style={[styles.timerPill, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
+        <ThemedText type="smallBold">
+          {nowMs === null ? 'Neue Themen bald' : `Neue Themen in ${formatCountdown(msUntilNextDay(new Date(nowMs)))}`}
+        </ThemedText>
+      </View>
       <View style={styles.testRow}>
         <Pressable
           onPress={handleResetPress}
           disabled={resetState === 'resetting'}
           accessibilityRole="button"
           accessibilityHint="Löscht deine Antworten auf die heutige Karte und deine heutigen Tipps"
-          style={[
-            styles.testButton,
-            { borderColor: resetState === 'confirming' ? theme.danger : theme.textSecondary },
-          ]}>
-          <ThemedText type="small" style={resetState === 'confirming' ? { color: theme.danger } : undefined}>
+          hitSlop={8}>
+          <ThemedText
+            type="small"
+            themeColor={resetState === 'confirming' ? 'danger' : 'textSecondary'}
+            style={styles.testLabel}>
             {resetLabel}
           </ThemedText>
         </Pressable>
         {resetState === 'confirming' ? (
-          <Pressable onPress={() => setResetState('idle')} accessibilityRole="button">
-            <ThemedText type="small" themeColor="textSecondary">
+          <Pressable onPress={() => setResetState('idle')} accessibilityRole="button" hitSlop={8}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.testLabel}>
               Abbrechen
             </ThemedText>
           </Pressable>
         ) : null}
       </View>
       {resetError ? (
-        <ThemedText type="small" style={{ color: theme.danger }}>
+        <ThemedText type="small" themeColor="danger">
           {resetError}
         </ThemedText>
       ) : null}
@@ -94,20 +98,26 @@ export function CountdownTimer() {
 
 const styles = StyleSheet.create({
   wrap: {
-    borderRadius: Spacing.three,
-    padding: Spacing.two,
-    gap: Spacing.one,
-    marginBottom: Spacing.two,
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  timerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   testRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
-  testButton: {
-    borderWidth: 1,
-    borderRadius: Spacing.four,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
+  testLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    textDecorationLine: 'underline',
   },
 });

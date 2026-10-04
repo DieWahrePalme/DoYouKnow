@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
@@ -5,10 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
 import { CountdownTimer } from '@/components/countdown-timer';
-import { FriendRow } from '@/components/friend-row';
+import { FriendRow, StatusIcon } from '@/components/friend-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing, ThemeColor } from '@/constants/theme';
+import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing, ThemeColor } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -36,21 +37,23 @@ function TopBar() {
     <View style={styles.topBar}>
       <Pressable
         onPress={() => router.push('/add-friend')}
-        hitSlop={12}
-        style={[styles.topBarButton, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText style={styles.topBarIcon}>＋</ThemedText>
+        accessibilityRole="button"
+        accessibilityLabel="Freund hinzufügen"
+        style={[styles.addPill, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <Ionicons name="person-add-outline" size={18} color={theme.textSecondary} />
+        <ThemedText themeColor="textSecondary" style={styles.addPillText}>
+          Freund hinzufügen
+        </ThemedText>
       </Pressable>
-      <View style={styles.topBarSpacer} />
       <Pressable
         onPress={() => router.push('/friend-requests')}
-        hitSlop={12}
-        style={[styles.topBarButton, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText style={styles.topBarIcon}>📥</ThemedText>
+        accessibilityRole="button"
+        accessibilityLabel={requestCount > 0 ? `Freundschaftsanfragen, ${requestCount} neu` : 'Freundschaftsanfragen'}
+        style={[styles.roundButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <Ionicons name="mail-outline" size={20} color={theme.text} />
         {requestCount > 0 ? (
-          <View style={[styles.badge, { backgroundColor: theme.danger }]}>
-            <ThemedText type="small" style={styles.badgeText}>
-              {requestCount}
-            </ThemedText>
+          <View style={[styles.badge, { backgroundColor: theme.primary }]}>
+            <ThemedText style={styles.badgeText}>{requestCount}</ThemedText>
           </View>
         ) : null}
       </Pressable>
@@ -66,19 +69,19 @@ function FriendListItem({ friend }: { friend: UserProfile }) {
   const todaysGroup = groups.find((g) => g.id === todaysGroupId)!;
   const status = useAppStore((state) => myGuessStatus(state, friend.id, todaysGroupId));
 
-  let statusIcon: string;
+  let statusIcon: StatusIcon;
   let statusTone: ThemeColor;
   if (status === 'resolved') {
-    statusIcon = '✅';
+    statusIcon = 'checkmark';
     statusTone = 'success';
   } else if (status === 'waiting_for_truth') {
-    statusIcon = '⏳';
+    statusIcon = 'hourglass';
     statusTone = 'primary';
   } else if (now && msUntilNextDay(now) <= URGENCY_WINDOW_MS) {
-    statusIcon = '❗';
+    statusIcon = 'alert';
     statusTone = 'danger';
   } else {
-    statusIcon = '❌';
+    statusIcon = 'ellipse-outline';
     statusTone = 'textSecondary';
   }
 
@@ -89,7 +92,7 @@ function FriendListItem({ friend }: { friend: UserProfile }) {
       streak={streak}
       statusIcon={now ? statusIcon : undefined}
       statusTone={statusTone}
-      subtitle={now ? `Heute: ${todaysGroup.icon} ${todaysGroup.name}` : 'Lädt …'}
+      subtitle={now ? `Heute: ${todaysGroup.name}` : 'Lädt …'}
       onPress={() =>
         router.push({
           pathname: '/friend/[id]/group/[groupId]',
@@ -114,19 +117,34 @@ function TodaysCard() {
     Boolean(latestAnswers(state.history[activeUserId]?.[todaysGroupId])),
   );
 
+  const theme = useTheme();
+
   return (
-    <FriendRow
-      avatarEmoji={profile.avatarEmoji}
-      name={profile.name}
-      streak={0}
-      hideStreak
-      subtitle={
-        now
-          ? `Heute: ${todaysGroup.icon} ${todaysGroup.name} · ${answeredToday ? 'schon aktualisiert' : 'jetzt beantworten'}`
-          : 'Lädt …'
-      }
+    <Pressable
       onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: todaysGroupId } })}
-    />
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.hero,
+        { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
+      ]}>
+      <View style={styles.heroTop}>
+        <ThemedText type="small" themeColor="textSecondary">
+          Deine Karte heute
+        </ThemedText>
+        <View style={[styles.heroAvatar, { backgroundColor: theme.backgroundSelected }]}>
+          <ThemedText style={styles.heroAvatarEmoji}>{profile.avatarEmoji}</ThemedText>
+        </View>
+      </View>
+      <ThemedText style={styles.heroTitle} numberOfLines={2}>
+        {now ? todaysGroup.name : 'Lädt …'}
+      </ThemedText>
+      <View style={[styles.heroAction, { backgroundColor: theme.primary }]}>
+        <ThemedText type="smallBold" themeColor="primaryText">
+          {answeredToday ? 'Antworten ansehen' : 'Jetzt beantworten'}
+        </ThemedText>
+        <Ionicons name="arrow-forward" size={16} color={theme.primaryText} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -135,13 +153,10 @@ function ChallengeCard() {
   return (
     <Pressable
       onPress={() => router.push('/friends')}
-      style={[styles.challengeCard, { borderColor: theme.border }]}>
-      <View style={[styles.challengeIconWrap, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText style={styles.challengeIcon}>＋</ThemedText>
-      </View>
-      <ThemedText type="small" themeColor="textSecondary">
-        Freund herausfordern
-      </ThemedText>
+      accessibilityRole="button"
+      style={[styles.challengePill, { borderColor: theme.border }]}>
+      <Ionicons name="people-outline" size={18} color={theme.text} />
+      <ThemedText type="smallBold">Freund herausfordern</ThemedText>
     </Pressable>
   );
 }
@@ -163,6 +178,7 @@ export default function HomeScreen() {
     .filter((user) => user.id !== activeUserId)
     .sort((a, b) => (streakByFriend[b.id] ?? 0) - (streakByFriend[a.id] ?? 0) || a.name.localeCompare(b.name));
 
+  const theme = useTheme();
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -194,27 +210,36 @@ export default function HomeScreen() {
           data={friends}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
           refreshing={refreshing}
           onRefresh={onPullToRefresh}
           ListHeaderComponent={
             <>
               <TopBar />
-              <CountdownTimer />
 
               <ThemedText type="title" style={styles.heading}>
                 Do You Know?
               </ThemedText>
+              <CountdownTimer />
 
               <TodaysCard />
 
-              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
                 Freunde
               </ThemedText>
             </>
           }
           ListFooterComponent={<ChallengeCard />}
-          renderItem={({ item }) => <FriendListItem friend={item} />}
+          renderItem={({ item, index }) => (
+            <View
+              style={[
+                styles.groupRow,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                index === 0 && styles.groupFirst,
+                index === friends.length - 1 && styles.groupLast,
+              ]}>
+              <FriendListItem friend={item} />
+            </View>
+          )}
         />
       </SafeAreaView>
     </ThemedView>
@@ -232,20 +257,30 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.two,
     marginTop: Spacing.three,
   },
-  topBarSpacer: {
+  addPill: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    height: 48,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  topBarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  addPillText: {
+    fontFamily: FontFamily.bodySemi,
+    fontSize: 15,
+  },
+  roundButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  topBarIcon: {
-    fontSize: 18,
   },
   badge: {
     position: 'absolute',
@@ -260,6 +295,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#FFFFFF',
+    fontFamily: FontFamily.bodyBold,
     fontSize: 10,
     lineHeight: 12,
   },
@@ -270,40 +306,84 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.one,
+    paddingBottom: BottomTabInset + Spacing.four,
   },
   heading: {
-    fontSize: 32,
-    lineHeight: 40,
+    fontSize: 40,
+    lineHeight: 44,
+    marginTop: Spacing.five,
+    marginBottom: Spacing.three,
+    textAlign: 'center',
+  },
+  hero: {
     marginTop: Spacing.four,
-    marginBottom: Spacing.two,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.four,
+    gap: Spacing.three,
   },
-  sectionLabel: {
-    marginTop: Spacing.four,
-    marginBottom: Spacing.one,
-    textTransform: 'uppercase',
-  },
-  separator: {
-    height: Spacing.one,
-  },
-  challengeCard: {
-    marginTop: Spacing.one,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderRadius: Spacing.three,
-    paddingVertical: Spacing.four,
+  heroTop: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    justifyContent: 'space-between',
   },
-  challengeIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  heroAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  challengeIcon: {
+  heroAvatarEmoji: {
     fontSize: 20,
+    lineHeight: 26,
+  },
+  heroTitle: {
+    fontFamily: FontFamily.display,
+    fontSize: 36,
+    lineHeight: 40,
+    letterSpacing: -1,
+    color: '#F5F5F7',
+  },
+  heroAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    height: 48,
+    borderRadius: Radius.pill,
+  },
+  sectionLabel: {
+    marginTop: Spacing.five,
+    marginBottom: Spacing.two,
+    marginLeft: Spacing.one,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontSize: 12,
+  },
+  groupRow: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  groupFirst: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopLeftRadius: Radius.card,
+    borderTopRightRadius: Radius.card,
+  },
+  groupLast: {
+    borderBottomLeftRadius: Radius.card,
+    borderBottomRightRadius: Radius.card,
+  },
+  challengePill: {
+    marginTop: Spacing.three,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
 });

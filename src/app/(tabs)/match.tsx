@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { ListRow } from '@/components/list-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
 import { matchWithFriend, useAppStore } from '@/state/appStore';
 import { UserProfile } from '@/types';
 
@@ -88,21 +88,24 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.one,
   },
   heading: {
-    fontSize: 32,
-    lineHeight: 40,
-    marginTop: Spacing.four,
+    fontSize: 38,
+    lineHeight: 42,
+    marginTop: Spacing.five,
   },
   subheading: {
-    marginBottom: Spacing.three,
+    marginTop: Spacing.one,
+    marginBottom: Spacing.four,
   },
   separator: {
     height: Spacing.one,
   },
   percent: {
-    fontSize: 20,
+    fontFamily: FontFamily.display,
+    fontSize: 26,
+    lineHeight: 30,
   },
 });

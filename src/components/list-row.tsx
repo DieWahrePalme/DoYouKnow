@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface ListRowProps {
@@ -21,7 +21,10 @@ export function ListRow({ icon, title, subtitle, trailing, onPress }: ListRowPro
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+        {
+          backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
+          borderColor: theme.border,
+        },
       ]}>
       <View style={[styles.icon, { backgroundColor: theme.backgroundSelected }]}>
         <ThemedText style={styles.iconText}>{icon}</ThemedText>
@@ -48,7 +51,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   icon: {
     width: 48,
@@ -65,6 +69,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontWeight: '600',
+    fontFamily: FontFamily.bodySemi,
   },
 });
