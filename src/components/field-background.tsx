@@ -1,9 +1,19 @@
-import { useIsFocused } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useIsFocused, usePathname } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import FieldCanvas from '@/components/field-canvas';
+import { FieldVariantName, variantForPath } from '@/constants/field-variants';
 import { FieldColors } from '@/constants/theme';
+
+/** Picks the look for the current route; stack screens keep the look of the tab they were opened from. */
+function useFieldVariant(): FieldVariantName {
+  const pathname = usePathname();
+  const last = useRef<FieldVariantName>('home');
+  const next = variantForPath(pathname);
+  if (next) last.current = next;
+  return last.current;
+}
 
 /** True while the app is in the foreground. */
 function useAppActive() {
@@ -33,12 +43,13 @@ function useReduceMotion() {
 export function FieldBackground() {
   const { width, height } = useWindowDimensions();
   const focused = useIsFocused();
+  const variant = useFieldVariant();
   const appActive = useAppActive();
   const reduceMotion = useReduceMotion();
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.base]} pointerEvents="none">
-      <FieldCanvas width={width} height={height} paused={!focused || !appActive || reduceMotion} />
+      <FieldCanvas width={width} height={height} paused={!focused || !appActive || reduceMotion} variant={variant} />
     </View>
   );
 }
