@@ -8,8 +8,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { CountdownTimer } from '@/components/countdown-timer';
 import { FriendRow, StatusIcon } from '@/components/friend-row';
 import { GroupedListItem } from '@/components/grouped-list-item';
+import { FocusFade } from '@/components/focus-fade';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing, ThemeColor } from '@/constants/theme';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
@@ -204,7 +204,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <ThemedView style={styles.container}>
+    <FocusFade style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <FlatList
           style={styles.list}
@@ -237,7 +237,7 @@ export default function HomeScreen() {
           )}
         />
       </SafeAreaView>
-    </ThemedView>
+    </FocusFade>
   );
 }
 

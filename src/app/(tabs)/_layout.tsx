@@ -60,15 +60,16 @@ export default function TabsLayout() {
   }
 
   // Real tabs: each screen is mounted once (on first visit) and then kept, so
-  // switching back is instant instead of rebuilding the screen. Hidden tabs are
-  // frozen so they don't re-render in the background.
+  // switching back is instant instead of rebuilding the screen.
   return (
     <Tabs
       initialRouteName="index"
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
-        freezeOnBlur: true,
+        // No navigator animation or freezing: both can leave a tab blank after quick switches on
+        // device. Screens fade themselves in with FocusFade instead.
+        animation: 'none',
+        freezeOnBlur: false,
         sceneStyle: { backgroundColor: 'transparent' },
       }}
       tabBar={({ state, navigation }) => (

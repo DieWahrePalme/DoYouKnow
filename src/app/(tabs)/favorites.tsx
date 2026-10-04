@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FocusFade } from '@/components/focus-fade';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
@@ -54,7 +55,7 @@ export default function FavoritesScreen() {
     .sort((a, b) => b.likedAt.localeCompare(a.likedAt));
 
   return (
-    <ThemedView style={styles.container}>
+    <FocusFade style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <FlatList
           style={styles.list}
@@ -83,7 +84,7 @@ export default function FavoritesScreen() {
           renderItem={({ item }) => <FavoriteRow item={item} />}
         />
       </SafeAreaView>
-    </ThemedView>
+    </FocusFade>
   );
 }
 

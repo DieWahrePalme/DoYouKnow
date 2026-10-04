@@ -6,8 +6,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { EmptyState } from '@/components/empty-state';
 import { GroupedListItem } from '@/components/grouped-list-item';
 import { ListRow } from '@/components/list-row';
+import { FocusFade } from '@/components/focus-fade';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
 import { matchWithFriend, useAppStore } from '@/state/appStore';
 import { UserProfile } from '@/types';
@@ -50,7 +50,7 @@ export default function MatchScreen() {
   );
 
   return (
-    <ThemedView style={styles.container}>
+    <FocusFade style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <FlatList
           style={styles.list}
@@ -81,7 +81,7 @@ export default function MatchScreen() {
           )}
         />
       </SafeAreaView>
-    </ThemedView>
+    </FocusFade>
   );
 }
 

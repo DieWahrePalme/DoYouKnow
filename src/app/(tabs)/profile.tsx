@@ -5,8 +5,8 @@ import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Skeleton } from '@/components/skeleton';
+import { FocusFade } from '@/components/focus-fade';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { CATEGORIES } from '@/data/mockData';
 import { useAfterInteractions } from '@/hooks/use-after-interactions';
@@ -192,7 +192,7 @@ export default function ProfileScreen() {
   );
 
   return (
-    <ThemedView style={styles.container}>
+    <FocusFade style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <FlatList
           style={styles.scrollView}
@@ -209,7 +209,7 @@ export default function ProfileScreen() {
           renderItem={({ item }) => <GroupTile group={item} isToday={item.id === todaysGroupId} />}
         />
       </SafeAreaView>
-    </ThemedView>
+    </FocusFade>
   );
 }
 
