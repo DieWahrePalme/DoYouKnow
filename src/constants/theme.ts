@@ -66,7 +66,7 @@ const light: Palette = {
   border: '#DADAE5',
   success: '#12905C',
   warning: '#B97A00',
-  danger: '#D3304D',
+  danger: '#BF2742',
   placeholder: '#6E6E7D',
   barBackground: 'rgba(255,255,255,0.94)',
   glass: 'rgba(255,255,255,0.7)',
