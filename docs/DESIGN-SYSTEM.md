@@ -74,4 +74,5 @@ the screens with fake data. Screenshots for review: Playwright at 393×852 again
 
 - [x] Tokens, fonts, icon family, background, tab bar, guess screen (card, buttons, header)
 - [x] Home (top bar, hero card, grouped friends), Profil (one-line header), Match + Favoriten (restyled)
-- [ ] Friends, settings, auth (still opaque), result view, add-friend, friend-requests, match detail
+- [x] Auth (welcome, intro, login, register, forgot password), guess/overview/result screens
+- [ ] Friends, settings (+ subpages), add-friend, friend-requests, match detail, privacy

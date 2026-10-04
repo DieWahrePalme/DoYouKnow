@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface SecondaryButtonProps {
@@ -10,6 +10,7 @@ interface SecondaryButtonProps {
   disabled?: boolean;
 }
 
+/** Quiet alternative to the primary action: outlined pill. */
 export function SecondaryButton({ label, onPress, disabled }: SecondaryButtonProps) {
   const theme = useTheme();
 
@@ -17,25 +18,32 @@ export function SecondaryButton({ label, onPress, disabled }: SecondaryButtonPro
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.button,
-        { borderColor: theme.border, backgroundColor: pressed ? theme.backgroundSelected : 'transparent' },
+        { borderColor: theme.border, backgroundColor: pressed ? theme.backgroundSelected : 'rgba(20,20,26,0.6)' },
         disabled && styles.disabled,
       ]}>
-      <ThemedText type="smallBold">{label}</ThemedText>
+      <ThemedText style={styles.label}>{label}</ThemedText>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.four,
-    borderWidth: 1.5,
+    height: 54,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   disabled: {
     opacity: 0.5,
+  },
+  label: {
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 16,
+    lineHeight: 22,
   },
 });
