@@ -34,7 +34,6 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 40,
     letterSpacing: -1.2,
-    color: '#F5F5F7',
   },
   subtitle: {
     fontSize: 16,

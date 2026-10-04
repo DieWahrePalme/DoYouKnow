@@ -1,7 +1,7 @@
 # DoYouKnow design system (redesign branch)
 
 Visual redesign only: features, data, Supabase calls, state and game/streak
-logic are untouched. Mobile only (375-430 px). Dark only.
+logic are untouched. Mobile only (375-430 px). Dark and light (follows the system; Settings → Darstellung: System / Hell / Dunkel).
 
 ## Audit of the previous UI (generic patterns found)
 
@@ -15,6 +15,10 @@ logic are untouched. Mobile only (375-430 px). Dark only.
 - Opaque backgrounds on every screen, no atmosphere.
 
 ## Tokens (`src/constants/theme.ts`)
+
+Two palettes with identical keys (`Colors.dark`, `Colors.light`), read through `useTheme()`; never hard-code a
+hex value in a component. The dark values are listed below; the light scheme uses white cards
+(`#FFFFFF`) on `#F4F4F8`, text `#0E0E14`, secondary text `#5E5E6D`, same accent.
 
 | Token | Value | Use |
 |---|---|---|
@@ -40,6 +44,9 @@ Scale: title 44/48, subtitle 28/33, question 32/37, body 16/24, small 14/20, cap
 (User avatars and topic icons are user/content data and stay emoji for now.)
 
 ## Background looks per tab (`src/constants/field-variants.ts`)
+
+Deliberately simple: two or three slow, wide contour lines (5-8 levels) plus a soft colour glow at the top.
+Base colour and strength come from the scheme (`FIELD_BASE`, per-scheme `intensity`/`wash`).
 
 | Tab | Look |
 |---|---|

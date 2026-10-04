@@ -59,7 +59,7 @@ export function ResultView({ subjectName, questions, guesses, truth }: ResultVie
               accessible
               accessibilityLabel={`${OUTCOME_SPOKEN[outcome]}. ${question.text}. Du: ${ANSWER_LABELS[guesses[question.id]]}, ${subjectName}: ${ANSWER_LABELS[truth[question.id]]}`}
               style={[styles.row, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-              <Ionicons name={icon.name} size={22} color={icon.color} />
+              <Ionicons name={icon.name} size={22} color={theme[icon.color]} />
               <View style={styles.rowText}>
                 <ThemedText style={styles.rowQuestion}>{question.text}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.rowDetail}>
@@ -82,11 +82,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  waitingTitle: { fontFamily: FontFamily.display, fontSize: 26, lineHeight: 30, letterSpacing: -0.5, color: '#F5F5F7' },
+  waitingTitle: { fontFamily: FontFamily.display, fontSize: 26, lineHeight: 30, letterSpacing: -0.5 },
   centerText: { textAlign: 'center' },
   resultWrap: { gap: Spacing.four },
   score: { alignItems: 'center', gap: 2 },
-  scoreValue: { fontFamily: FontFamily.display, fontSize: 64, lineHeight: 68, letterSpacing: -2, color: '#F5F5F7' },
+  scoreValue: { fontFamily: FontFamily.display, fontSize: 64, lineHeight: 68, letterSpacing: -2 },
   list: { borderRadius: Radius.card, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, padding: Spacing.three },
   rowText: { flex: 1, gap: 2 },

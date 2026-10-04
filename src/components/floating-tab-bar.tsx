@@ -31,7 +31,9 @@ export function FloatingTabBar({ tabs, activeKey, onSelect }: FloatingTabBarProp
 
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, Spacing.three) }]} pointerEvents="box-none">
-      <View accessibilityRole="tablist" style={[styles.bar, { borderColor: theme.border }]}>
+      <View
+        accessibilityRole="tablist"
+        style={[styles.bar, { borderColor: theme.border, backgroundColor: theme.barBackground }]}>
         {tabs.map((tab) => {
           const active = tab.key === activeKey;
           return (
@@ -78,7 +80,6 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: Radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(20,20,26,0.94)',
   },
   tab: {
     flexDirection: 'row',

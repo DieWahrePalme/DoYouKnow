@@ -73,6 +73,5 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
     letterSpacing: -0.6,
-    color: '#F5F5F7',
   },
 });

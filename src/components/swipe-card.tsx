@@ -284,7 +284,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
             Nie · 2× tippen
           </ThemedText>
         </View>
-        <Animated.View style={[styles.shade, shadeStyle]} pointerEvents="none" />
+        <Animated.View style={[styles.shade, { backgroundColor: theme.layerShade }, shadeStyle]} pointerEvents="none" />
       </Animated.View>
     </GestureDetector>
   );
@@ -312,7 +312,6 @@ const styles = StyleSheet.create({
   shade: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     borderRadius: Radius.card + 4,
-    backgroundColor: '#07070B',
   },
   questionWrap: {
     alignSelf: 'stretch',
@@ -324,7 +323,6 @@ const styles = StyleSheet.create({
     lineHeight: 47,
     letterSpacing: -1.2,
     textAlign: 'center',
-    color: '#F5F5F7',
   },
   hintPill: {
     position: 'absolute',

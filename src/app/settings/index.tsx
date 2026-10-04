@@ -7,11 +7,13 @@ import { Avatar } from '@/components/avatar';
 import { GroupedCard } from '@/components/grouped-card';
 import { ListRow } from '@/components/list-row';
 import { Screen } from '@/components/screen';
+import { SegmentedControl } from '@/components/segmented-control';
 import { SectionLabel } from '@/components/section-label';
 import { ThemedText } from '@/components/themed-text';
 import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
+import { AppearancePreference, useAppearanceStore } from '@/state/appearanceStore';
 import { useAuthStore } from '@/state/authStore';
 
 export default function SettingsScreen() {
@@ -20,6 +22,8 @@ export default function SettingsScreen() {
   const email = useAuthStore((state) => state.session?.user.email);
   const signOut = useAuthStore((state) => state.signOut);
   const version = Constants.expoConfig?.version;
+  const preference = useAppearanceStore((state) => state.preference);
+  const setPreference = useAppearanceStore((state) => state.setPreference);
 
   return (
     <Screen title="Einstellungen">
@@ -52,6 +56,20 @@ export default function SettingsScreen() {
       </View>
 
       <View>
+        <SectionLabel>Darstellung</SectionLabel>
+        <SegmentedControl<AppearancePreference>
+          accessibilityLabel="Darstellung"
+          value={preference}
+          onChange={setPreference}
+          options={[
+            { value: 'system', label: 'System' },
+            { value: 'light', label: 'Hell' },
+            { value: 'dark', label: 'Dunkel' },
+          ]}
+        />
+      </View>
+
+      <View>
         <SectionLabel>Datenschutz</SectionLabel>
         <GroupedCard>
           <ListRow
@@ -68,7 +86,7 @@ export default function SettingsScreen() {
         accessibilityRole="button"
         style={({ pressed }) => [
           styles.signOut,
-          { borderColor: theme.border, backgroundColor: pressed ? theme.backgroundSelected : 'rgba(20,20,26,0.6)' },
+          { borderColor: theme.border, backgroundColor: pressed ? theme.backgroundSelected : theme.glass },
         ]}>
         <Ionicons name="log-out-outline" size={20} color={theme.danger} />
         <ThemedText style={[styles.signOutLabel, { color: theme.danger }]}>Abmelden</ThemedText>
@@ -93,7 +111,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   profileText: { flex: 1, gap: 2 },
-  profileName: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.6, color: '#F5F5F7' },
+  profileName: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.6 },
   signOut: {
     marginTop: Spacing.three,
     minHeight: 54,

@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { FieldVariantName, variantForPath } from '@/constants/field-variants';
-import { FieldColors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
 
 /** Picks the look for the current route; stack screens keep the look of the tab they were opened from. */
 function useFieldVariant(): FieldVariantName {
@@ -32,24 +33,23 @@ export function FieldBackground() {
   const { width, height } = useWindowDimensions();
   const focused = useIsFocused();
   const variant = useFieldVariant();
+  const scheme = useColorScheme();
+  const theme = useTheme();
   const reduceMotion = useReduceMotion();
 
   return (
     <View
-      style={[StyleSheet.absoluteFill, styles.base]}
+      style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]}
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants">
       <WithSkiaWeb
         opts={{ locateFile: (file: string) => `${BASE_URL}/${file}` }}
         getComponent={() => import('@/components/field-canvas')}
-        componentProps={{ width, height, paused: !focused || reduceMotion, variant }}
+        componentProps={{ width, height, paused: !focused || reduceMotion, variant, scheme }}
         fallback={null}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  base: { backgroundColor: FieldColors.base },
-});

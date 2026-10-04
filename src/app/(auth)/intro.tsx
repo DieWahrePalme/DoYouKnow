@@ -172,7 +172,6 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     letterSpacing: -0.9,
     textAlign: 'center',
-    color: '#F5F5F7',
   },
   slideBody: {
     textAlign: 'center',

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { PLACEHOLDER_COLOR, FontFamily, Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface TextFieldProps extends TextInputProps {
@@ -21,7 +21,7 @@ export function TextField({ label, error, style, onFocus, onBlur, ...rest }: Tex
         {label}
       </ThemedText>
       <TextInput
-        placeholderTextColor={PLACEHOLDER_COLOR}
+        placeholderTextColor={theme.placeholder}
         selectionColor={theme.primary}
         maxFontSizeMultiplier={2}
         accessibilityLabel={label}

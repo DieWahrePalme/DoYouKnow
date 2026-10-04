@@ -59,7 +59,6 @@ const styles = StyleSheet.create({
     lineHeight: 62,
     letterSpacing: -2.2,
     textAlign: 'center',
-    color: '#F5F5F7',
   },
   subtitle: {
     textAlign: 'center',

@@ -7,39 +7,80 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+/** Every colour a component may ask for; both schemes define all of them. */
+export interface Palette {
+  text: string;
+  background: string;
+  backgroundElement: string;
+  backgroundSelected: string;
+  textSecondary: string;
+  /** Accent used for text/links (the plain accent is too dark for text on the dark scheme). */
+  textAccent: string;
+  primary: string;
+  primaryText: string;
+  border: string;
+  success: string;
+  warning: string;
+  danger: string;
+  placeholder: string;
+  /** Floating tab bar surface (slightly see-through). */
+  barBackground: string;
+  /** Outlined buttons: a hint of surface so the field behind doesn't cut through the label. */
+  glass: string;
+  /** Veil laid over the cards further back in the swipe stack. */
+  layerShade: string;
+}
+
 /**
- * Dark-only palette. Surfaces and text stay neutral; blue -> violet is
- * reserved for the background field and the single accent (primary).
+ * Two schemes, same structure: neutral surfaces and text, one accent. The
+ * animated field behind the app carries the colour (see field-variants.ts).
  */
-const dark = {
+const dark: Palette = {
   text: '#F5F5F7',
   background: '#07070B',
   backgroundElement: '#14141A',
   backgroundSelected: '#1D1D26',
   textSecondary: '#8D8D9B',
+  textAccent: '#9D8FFF',
   primary: '#6A5AF9',
   primaryText: '#FFFFFF',
   border: '#24242E',
   success: '#3DDC97',
+  warning: '#FFC857',
   danger: '#FF5470',
-} as const;
+  placeholder: '#85859A',
+  barBackground: 'rgba(20,20,26,0.94)',
+  glass: 'rgba(20,20,26,0.6)',
+  layerShade: '#07070B',
+};
 
-export const Colors = { light: dark, dark } as const;
+const light: Palette = {
+  text: '#0E0E14',
+  background: '#F4F4F8',
+  backgroundElement: '#FFFFFF',
+  backgroundSelected: '#E9E9F1',
+  textSecondary: '#5E5E6D',
+  textAccent: '#5445E0',
+  primary: '#6A5AF9',
+  primaryText: '#FFFFFF',
+  border: '#DADAE5',
+  success: '#12905C',
+  warning: '#B97A00',
+  danger: '#D3304D',
+  placeholder: '#6E6E7D',
+  barBackground: 'rgba(255,255,255,0.94)',
+  glass: 'rgba(255,255,255,0.7)',
+  layerShade: '#C8C8D6',
+};
 
-/** Blue -> violet stops used by the animated background field. */
-export const FieldColors = {
-  base: '#07070B',
-  blue: '#2F6BFF',
-  violet: '#8A5CFF',
-} as const;
+export const Colors = { light, dark } as const;
 
-/** Readable placeholder colour on the dark surfaces (>= 4.5:1). */
-export const PLACEHOLDER_COLOR = '#85859A';
+export type ColorScheme = keyof typeof Colors;
 
-/** Gradient stops for hero surfaces (kept for primary CTA fallbacks). */
+/** Gradient stops for the brand mark (same in both schemes). */
 export const PrimaryGradient = ['#4F7BFF', '#8A5CFF'] as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export type ThemeColor = keyof Palette;
 
 export const Fonts = Platform.select({
   ios: {

@@ -31,6 +31,6 @@ export default function PrivacyPolicyScreen() {
 
 const styles = StyleSheet.create({
   section: { gap: Spacing.one, marginTop: Spacing.two },
-  sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, lineHeight: 24, letterSpacing: -0.4, color: '#F5F5F7' },
+  sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, lineHeight: 24, letterSpacing: -0.4 },
   sectionBody: { fontSize: 15, lineHeight: 23 },
 });

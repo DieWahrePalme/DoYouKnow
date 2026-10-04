@@ -1,7 +1,6 @@
-/** The app is dark-only (see docs/DESIGN-SYSTEM.md), so there is no scheme switch. */
+import { Colors, Palette } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-import { Colors } from '@/constants/theme';
-
-export function useTheme() {
-  return Colors.dark;
+export function useTheme(): Palette {
+  return Colors[useColorScheme()];
 }

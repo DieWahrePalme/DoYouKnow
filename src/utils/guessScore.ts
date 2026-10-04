@@ -12,11 +12,14 @@ const SAME_DIRECTION: Partial<Record<AnswerValue, AnswerValue>> = {
 
 export const OUTCOME_POINTS: Record<GuessOutcome, number> = { exact: 1, direction: 0.5, wrong: 0 };
 
-/** Ionicons name + colour per outcome (shape differs too, so it never relies on colour alone). */
-export const OUTCOME_ICONS: Record<GuessOutcome, { name: 'checkmark-circle' | 'contrast' | 'close-circle'; color: string }> = {
-  exact: { name: 'checkmark-circle', color: '#3DDC97' },
-  direction: { name: 'contrast', color: '#FFC857' },
-  wrong: { name: 'close-circle', color: '#FF5470' },
+/** Ionicons name + theme colour per outcome (shape differs too, so it never relies on colour alone). */
+export const OUTCOME_ICONS: Record<
+  GuessOutcome,
+  { name: 'checkmark-circle' | 'contrast' | 'close-circle'; color: 'success' | 'warning' | 'danger' }
+> = {
+  exact: { name: 'checkmark-circle', color: 'success' },
+  direction: { name: 'contrast', color: 'warning' },
+  wrong: { name: 'close-circle', color: 'danger' },
 };
 
 export function guessOutcome(guess: AnswerValue | undefined, truth: AnswerValue | undefined): GuessOutcome {
