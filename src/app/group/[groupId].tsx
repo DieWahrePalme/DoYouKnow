@@ -1,14 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GuessHeader } from '@/components/guess-header';
 import { FriendGuess, FriendGuessesAboutMe } from '@/components/friend-guesses-about-me';
 import { HistoryTrail } from '@/components/history-trail';
+import { SectionLabel } from '@/components/section-label';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { latestAnswers, useAppStore } from '@/state/appStore';
 import { AnswerMap } from '@/types';
@@ -22,6 +25,7 @@ export default function MyGroupScreen() {
   const historyForGroup = useAppStore((state) => state.history[state.activeUserId]?.[groupId ?? '']);
   const submitSelfAnswers = useAppStore((state) => state.submitSelfAnswers);
   const users = useAppStore((state) => state.users);
+  const myAvatar = users[activeUserId]?.avatarEmoji ?? '🙂';
   const guesses = useAppStore((state) => state.guesses);
   const guessDays = useAppStore((state) => state.guessDays);
   const today = useAppStore((state) => state.today);
@@ -58,47 +62,51 @@ export default function MyGroupScreen() {
     setJustSubmitted(true);
   }
 
+  const header = <GuessHeader avatarEmoji={myAvatar} kicker="Deine Karte" topicName={group.name} />;
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="subtitle" style={styles.heading}>
-          {group.icon} {group.name}
-        </ThemedText>
-
         {showSwipeDeck ? (
-          <>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.subheading}>
-              Beantworte ehrlich – das ist deine aktuelle Wahrheit für dieses Thema.
-            </ThemedText>
-            <SwipeDeck questions={group.questions} onComplete={handleComplete} />
-          </>
+          <SwipeDeck questions={group.questions} onComplete={handleComplete} header={header} />
         ) : (
-          <ScrollView contentContainerStyle={styles.summary}>
+          <ScrollView contentContainerStyle={styles.summary} showsVerticalScrollIndicator={false}>
+            <View style={styles.heading}>{header}</View>
             {justSubmitted ? (
-              <ThemedView type="backgroundElement" style={styles.doneBanner}>
-                <ThemedText type="smallBold">
-                  ✅ Gespeichert – deine Freunde sehen jetzt die aktuelle Antwort.
+              <View style={[styles.doneBanner, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                <Ionicons name="checkmark-circle" size={20} color={theme.success} />
+                <ThemedText type="smallBold" style={styles.doneText}>
+                  Gespeichert – deine Freunde sehen jetzt die aktuelle Antwort.
                 </ThemedText>
-              </ThemedView>
+              </View>
             ) : null}
-            {group.questions.map((question) => (
-              <HistoryTrail
-                key={question.id}
-                questionText={question.text}
-                entries={historyForGroup![question.id]}
-              />
-            ))}
+
+            <SectionLabel>Deine Antworten</SectionLabel>
+            <View style={[styles.answersCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              {group.questions.map((question, i) => (
+                <View
+                  key={question.id}
+                  style={i > 0 ? { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth } : undefined}>
+                  <HistoryTrail questionText={question.text} entries={historyForGroup![question.id]} />
+                </View>
+              ))}
+            </View>
+
+            <SectionLabel>Von Freunden getippt</SectionLabel>
             <FriendGuessesAboutMe
               questions={group.questions}
               myAnswers={currentAnswers!}
               friendGuesses={friendGuesses}
             />
+
             <Pressable
               onPress={() => {
                 setJustSubmitted(false);
                 setIsUpdating(true);
               }}
-              style={[styles.button, { backgroundColor: theme.backgroundSelected }]}>
+              accessibilityRole="button"
+              style={[styles.button, { borderColor: theme.border }]}>
+              <Ionicons name="refresh" size={18} color={theme.text} />
               <ThemedText type="smallBold">Antworten aktualisieren</ThemedText>
             </Pressable>
           </ScrollView>
@@ -118,27 +126,37 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
   heading: {
-    marginTop: Spacing.three,
-  },
-  subheading: {
-    marginBottom: Spacing.three,
+    marginTop: Spacing.two,
   },
   summary: {
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
+    paddingBottom: Spacing.five,
   },
   doneBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  doneText: { flex: 1 },
+  answersCard: {
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
   button: {
-    marginTop: Spacing.two,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.four,
-    alignSelf: 'center',
+    marginTop: Spacing.four,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
 });

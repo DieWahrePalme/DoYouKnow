@@ -1,14 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AuthHeading } from '@/components/auth-heading';
 import { AvatarGrid } from '@/components/avatar-grid';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/state/authStore';
 
@@ -30,13 +32,13 @@ function Checkbox({ checked, onToggle, children }: { checked: boolean; onToggle:
       onPress={onToggle}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
-      style={[styles.checkRow, { backgroundColor: theme.backgroundElement }]}>
+      style={[styles.checkRow, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       <View
         style={[
           styles.checkBox,
           { borderColor: checked ? theme.primary : theme.textSecondary, backgroundColor: checked ? theme.primary : 'transparent' },
         ]}>
-        {checked ? <ThemedText style={styles.checkMark}>✓</ThemedText> : null}
+        {checked ? <Ionicons name="checkmark" size={18} color="#FFFFFF" /> : null}
       </View>
       <View style={styles.checkText}>{children}</View>
     </Pressable>
@@ -125,15 +127,20 @@ export default function RegisterScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={[styles.safeArea, styles.centerAll]}>
-          <ThemedText style={styles.bigEmoji}>{avatarEmoji}</ThemedText>
-          <ThemedText type="subtitle" style={styles.centerText}>
-            Fast geschafft, {username}!
-          </ThemedText>
-          <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
-            📬 Wir haben dir eine Bestätigungs-E-Mail an {email.trim()} geschickt. Tipp auf den Link – danach kannst
-            du dich anmelden und loslegen.
-          </ThemedText>
-          <PrimaryButton label="Zur Anmeldung" onPress={() => router.replace('/(auth)/login')} />
+          <View style={[styles.avatarRing, { backgroundColor: theme.backgroundElement, borderColor: theme.primary }]}>
+            <ThemedText style={styles.bigEmoji}>{avatarEmoji}</ThemedText>
+          </View>
+          <ThemedText style={[styles.doneTitle, styles.centerText]}>Fast geschafft, {username}!</ThemedText>
+          <View style={styles.mailRow}>
+            <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
+            <ThemedText themeColor="textSecondary" style={styles.mailText}>
+              Wir haben dir eine Bestätigungs-E-Mail an {email.trim()} geschickt. Tipp auf den Link – danach kannst du
+              dich anmelden und loslegen.
+            </ThemedText>
+          </View>
+          <View style={styles.fullWidth}>
+            <PrimaryButton label="Zur Anmeldung" onPress={() => router.replace('/(auth)/login')} />
+          </View>
         </SafeAreaView>
       </ThemedView>
     );
@@ -144,14 +151,14 @@ export default function RegisterScreen() {
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <View style={styles.progressRow}>
           <Pressable onPress={handleBack} accessibilityRole="button" accessibilityLabel="Zurück" hitSlop={10}>
-            <ThemedText type="subtitle">‹</ThemedText>
+            <Ionicons name="chevron-back" size={26} color={theme.text} />
           </Pressable>
           <View style={[styles.progressTrack, { backgroundColor: theme.backgroundSelected }]}>
             <View
               style={[styles.progressFill, { backgroundColor: theme.primary, width: `${((step + 1) / STEPS.length) * 100}%` }]}
             />
           </View>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="smallBold" themeColor="textSecondary">
             {step + 1}/{STEPS.length}
           </ThemedText>
         </View>
@@ -159,10 +166,10 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {step === 0 ? (
             <>
-              <ThemedText type="subtitle">Wie sollen dich deine Freunde finden?</ThemedText>
-              <ThemedText type="default" themeColor="textSecondary">
-                Dein Benutzername ist für andere sichtbar – über ihn schicken dir Freunde Anfragen.
-              </ThemedText>
+              <AuthHeading
+                title="Wie sollen dich deine Freunde finden?"
+                subtitle="Dein Benutzername ist für andere sichtbar – über ihn schicken dir Freunde Anfragen."
+              />
               <TextField
                 label="Benutzername"
                 value={username}
@@ -181,12 +188,11 @@ export default function RegisterScreen() {
 
           {step === 1 ? (
             <>
-              <ThemedText type="subtitle">Wähl dein Profilbild</ThemedText>
-              <ThemedText type="default" themeColor="textSecondary">
-                Kannst du später jederzeit in den Einstellungen ändern.
-              </ThemedText>
+              <AuthHeading title="Wähl dein Profilbild" subtitle="Kannst du später jederzeit in den Einstellungen ändern." />
               <View style={styles.preview}>
-                <ThemedText style={styles.bigEmoji}>{avatarEmoji}</ThemedText>
+                <View style={[styles.avatarRing, { backgroundColor: theme.backgroundElement, borderColor: theme.primary }]}>
+                  <ThemedText style={styles.bigEmoji}>{avatarEmoji}</ThemedText>
+                </View>
                 <ThemedText type="smallBold">{username}</ThemedText>
               </View>
               <AvatarGrid selected={avatarEmoji} onSelect={setAvatarEmoji} />
@@ -195,10 +201,7 @@ export default function RegisterScreen() {
 
           {step === 2 ? (
             <>
-              <ThemedText type="subtitle">Deine Zugangsdaten</ThemedText>
-              <ThemedText type="default" themeColor="textSecondary">
-                Damit meldest du dich an. Deine E-Mail sieht niemand außer dir.
-              </ThemedText>
+              <AuthHeading title="Deine Zugangsdaten" subtitle="Damit meldest du dich an. Deine E-Mail sieht niemand außer dir." />
               <TextField
                 label="E-Mail"
                 value={email}
@@ -233,14 +236,14 @@ export default function RegisterScreen() {
 
           {step === 3 ? (
             <>
-              <ThemedText type="subtitle">Noch zwei Häkchen</ThemedText>
+              <AuthHeading title="Noch zwei Häkchen" />
               <Checkbox checked={isOver16} onToggle={() => setIsOver16(!isOver16)}>
                 <ThemedText type="default">Ich bin mindestens 16 Jahre alt.</ThemedText>
               </Checkbox>
               <Checkbox checked={acceptedPrivacy} onToggle={() => setAcceptedPrivacy(!acceptedPrivacy)}>
                 <ThemedText type="default">
                   Ich habe die{' '}
-                  <ThemedText type="default" style={{ color: theme.primary }} onPress={() => router.push('/privacy')}>
+                  <ThemedText type="default" style={{ color: '#9D8FFF' }} onPress={() => router.push('/privacy')}>
                     Datenschutzerklärung
                   </ThemedText>{' '}
                   gelesen und bin einverstanden.
@@ -250,7 +253,7 @@ export default function RegisterScreen() {
           ) : null}
 
           {error ? (
-            <ThemedText type="small" style={{ color: theme.danger }}>
+            <ThemedText type="small" themeColor="danger">
               {error}
             </ThemedText>
           ) : null}
@@ -303,13 +306,13 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     flex: 1,
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
   },
   scroll: {
     paddingHorizontal: Spacing.four,
@@ -319,18 +322,47 @@ const styles = StyleSheet.create({
   },
   preview: {
     alignItems: 'center',
-    gap: Spacing.one,
+    gap: Spacing.two,
+  },
+  avatarRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bigEmoji: {
-    fontSize: 56,
-    lineHeight: 70,
+    fontSize: 48,
+    lineHeight: 60,
+  },
+  doneTitle: {
+    fontFamily: FontFamily.display,
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -1,
+    color: '#F5F5F7',
+  },
+  mailRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    alignItems: 'flex-start',
+  },
+  mailText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  fullWidth: {
+    alignSelf: 'stretch',
   },
   checkRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   checkBox: {
     width: 26,
@@ -340,15 +372,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkMark: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    lineHeight: 20,
-  },
   checkText: {
     flex: 1,
   },
   linkRow: {
     alignItems: 'center',
+    paddingVertical: Spacing.one,
   },
 });

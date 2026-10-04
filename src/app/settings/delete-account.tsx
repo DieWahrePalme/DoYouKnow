@@ -1,16 +1,27 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { GroupedCard } from '@/components/grouped-card';
+import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/state/authStore';
 
+/** Red with white text at >= 4.5:1 (the lighter danger tone is for text on dark, not for fills). */
+const DANGER_SOLID = '#CF2F4C';
+
 /** Typing this exact word unlocks the button - deleting is permanent, so one tap must never be enough. */
 const CONFIRM_WORD = 'LÖSCHEN';
+
+const WHAT_IS_DELETED: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
+  { icon: 'person-outline', text: 'Profil, Benutzername und Profilbild' },
+  { icon: 'chatbubble-ellipses-outline', text: 'Alle Antworten und Tipps' },
+  { icon: 'people-outline', text: 'Freundschaften, Flammen und Favoriten' },
+  { icon: 'flag-outline', text: 'Meldungen und Blockierungen' },
+];
 
 export default function DeleteAccountScreen() {
   const theme = useTheme();
@@ -32,75 +43,61 @@ export default function DeleteAccountScreen() {
     }
   }
 
+  const enabled = confirmed && !deleting;
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <ThemedText type="subtitle">Konto löschen</ThemedText>
-          <ThemedText type="default" themeColor="textSecondary">
-            Dein Konto und alle deine Daten werden sofort und endgültig gelöscht:
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            • Profil, Benutzername und Profilbild{'\n'}• alle Antworten und Tipps{'\n'}• Freundschaften, Flammen und
-            Favoriten{'\n'}• Meldungen und Blockierungen
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Das kann nicht rückgängig gemacht werden. Deine Freunde sehen dich danach nicht mehr.
-          </ThemedText>
+    <Screen
+      title="Konto löschen"
+      subtitle="Dein Konto und alle deine Daten werden sofort und endgültig gelöscht. Das kann nicht rückgängig gemacht werden.">
+      <GroupedCard>
+        {WHAT_IS_DELETED.map((item) => (
+          <View key={item.text} style={styles.item}>
+            <Ionicons name={item.icon} size={20} color={theme.danger} />
+            <ThemedText style={styles.itemText}>{item.text}</ThemedText>
+          </View>
+        ))}
+      </GroupedCard>
+      <ThemedText type="small" themeColor="textSecondary">
+        Deine Freunde sehen dich danach nicht mehr.
+      </ThemedText>
 
-          <TextField
-            label={`Zur Bestätigung „${CONFIRM_WORD}“ eingeben`}
-            value={confirmText}
-            onChangeText={setConfirmText}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            placeholder={CONFIRM_WORD}
-          />
+      <TextField
+        label={`Zur Bestätigung „${CONFIRM_WORD}“ eingeben`}
+        value={confirmText}
+        onChangeText={setConfirmText}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        placeholder={CONFIRM_WORD}
+      />
 
-          <Pressable
-            onPress={handleDelete}
-            disabled={!confirmed || deleting}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !confirmed || deleting }}
-            style={[styles.deleteButton, { backgroundColor: theme.danger, opacity: confirmed && !deleting ? 1 : 0.4 }]}>
-            <ThemedText type="smallBold" style={styles.deleteLabel}>
-              {deleting ? 'Lösche …' : 'Konto endgültig löschen'}
-            </ThemedText>
-          </Pressable>
+      <Pressable
+        onPress={handleDelete}
+        disabled={!enabled}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !enabled, busy: deleting }}
+        style={[styles.deleteButton, { backgroundColor: enabled ? DANGER_SOLID : theme.backgroundSelected }]}>
+        <ThemedText style={[styles.deleteLabel, { color: enabled ? '#FFFFFF' : theme.textSecondary }]}>
+          {deleting ? 'Lösche …' : 'Konto endgültig löschen'}
+        </ThemedText>
+      </Pressable>
 
-          {error ? (
-            <ThemedText type="small" style={{ color: theme.danger }}>
-              {error}
-            </ThemedText>
-          ) : null}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+      {error ? (
+        <ThemedText type="small" themeColor="danger">
+          {error}
+        </ThemedText>
+      ) : null}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  scroll: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.three,
-  },
+  item: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three },
+  itemText: { flex: 1, fontSize: 15, lineHeight: 21 },
   deleteButton: {
-    borderRadius: Spacing.four,
-    paddingVertical: Spacing.three,
+    minHeight: 54,
+    borderRadius: Radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  deleteLabel: {
-    color: '#FFFFFF',
-  },
+  deleteLabel: { fontFamily: FontFamily.bodyBold, fontSize: 16, lineHeight: 22 },
 });

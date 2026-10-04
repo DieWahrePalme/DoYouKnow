@@ -1,16 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import { CATEGORIES } from '@/data/mockData';
+import { AnswerChip } from '@/components/answer-chip';
+import { EmptyState } from '@/components/empty-state';
+import { GroupedCard } from '@/components/grouped-card';
+import { Screen } from '@/components/screen';
+import { ScoreHero } from '@/components/score-hero';
+import { SectionLabel } from '@/components/section-label';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
+import { CATEGORIES } from '@/data/mockData';
 import { useTheme } from '@/hooks/use-theme';
 import { matchByCategory, sharedAnswers, useAppStore } from '@/state/appStore';
-import { ANSWER_LABELS } from '@/types';
 
 export default function MatchCategoryDetailScreen() {
   const { friendId, categoryId } = useLocalSearchParams<{ friendId: string; categoryId: string }>();
@@ -36,119 +40,73 @@ export default function MatchCategoryDetailScreen() {
 
   if (!friend || !category || !result) {
     return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <ThemedText type="default">Das gibt es nicht (mehr).</ThemedText>
-        </SafeAreaView>
-      </ThemedView>
+      <Screen>
+        <EmptyState icon="help-circle-outline" title="Nicht gefunden" body="Das gibt es nicht (mehr)." />
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-          <ThemedText type="subtitle" style={styles.heading}>
-            {category.icon} {category.name}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
-            {friend.avatarEmoji} {friend.name}
-          </ThemedText>
+    <Screen title={category.name} subtitle={`Match mit ${friend.name}`}>
+      <ScoreHero
+        percent={result.percent}
+        caption={
+          result.total > 0
+            ? `${result.matches} von ${result.total} vergleichbaren Antworten gleich`
+            : 'Noch keine gemeinsamen Antworten in dieser Kategorie.'
+        }
+      />
 
-          <ThemedView type="backgroundElement" style={styles.scoreCard}>
-            <ThemedText type="title" style={styles.centerText}>
-              {result.percent === null ? '–' : `${result.percent}%`}
-            </ThemedText>
-            <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
-              {result.total > 0
-                ? `${result.matches} von ${result.total} vergleichbaren Antworten gleich`
-                : 'Noch keine gemeinsamen Antworten in dieser Kategorie.'}
-            </ThemedText>
-          </ThemedView>
-
-          {shared.length > 0 ? (
-            <>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
-                Ihr seid euch einig
-              </ThemedText>
-              {shared.map((item) => {
-                const favoriteId = `${activeUserId}:${friend.id}:${item.group.id}:${item.questionId}`;
-                const isFavorite = favorites.some((f) => f.id === favoriteId);
-                const question = item.group.questions.find((q) => q.id === item.questionId)!;
-                return (
-                  <View key={favoriteId} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-                    <ThemedText style={styles.rowIcon}>{item.group.icon}</ThemedText>
-                    <View style={styles.rowText}>
-                      <ThemedText type="small">{question.text}</ThemedText>
+      <View>
+        <SectionLabel>Ihr seid euch einig</SectionLabel>
+        {shared.length > 0 ? (
+          <GroupedCard>
+            {shared.map((item) => {
+              const favoriteId = `${activeUserId}:${friend.id}:${item.group.id}:${item.questionId}`;
+              const isFavorite = favorites.some((f) => f.id === favoriteId);
+              const question = item.group.questions.find((q) => q.id === item.questionId)!;
+              return (
+                <View key={favoriteId} style={styles.row}>
+                  <View style={styles.rowText}>
+                    <ThemedText style={styles.question}>{question.text}</ThemedText>
+                    <View style={styles.chipLine}>
                       <ThemedText type="small" themeColor="textSecondary">
-                        Beide: {ANSWER_LABELS[item.value]}
+                        Beide:
                       </ThemedText>
+                      <AnswerChip value={item.value} />
                     </View>
-                    <Pressable onPress={() => toggleFavorite(friend.id, item.group.id, item.questionId)}>
-                      <ThemedText style={styles.heart}>{isFavorite ? '❤️' : '🤍'}</ThemedText>
-                    </Pressable>
                   </View>
-                );
-              })}
-            </>
-          ) : null}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+                  <Pressable
+                    onPress={() => toggleFavorite(friend.id, item.group.id, item.questionId)}
+                    accessibilityRole="button"
+                    accessibilityLabel={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                    accessibilityState={{ selected: isFavorite }}
+                    hitSlop={10}>
+                    <Ionicons
+                      name={isFavorite ? 'heart' : 'heart-outline'}
+                      size={26}
+                      color={isFavorite ? theme.danger : theme.textSecondary}
+                    />
+                  </Pressable>
+                </View>
+              );
+            })}
+          </GroupedCard>
+        ) : (
+          <EmptyState
+            icon="git-compare-outline"
+            title="Noch nichts gemeinsam"
+            body="Sobald ihr bei einer Frage dieselbe Antwort gebt, taucht sie hier auf."
+          />
+        )}
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-  },
-  scroll: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.two,
-  },
-  heading: {
-    textAlign: 'center',
-    marginTop: Spacing.three,
-  },
-  scoreCard: {
-    borderRadius: Spacing.four,
-    padding: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginTop: Spacing.two,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  sectionLabel: {
-    marginTop: Spacing.three,
-    textTransform: 'uppercase',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  rowIcon: {
-    fontSize: 22,
-  },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
-  heart: {
-    fontSize: 22,
-  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three },
+  rowText: { flex: 1, gap: Spacing.two },
+  question: { fontFamily: FontFamily.bodySemi, fontSize: 15, lineHeight: 21 },
+  chipLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

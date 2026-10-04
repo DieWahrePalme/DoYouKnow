@@ -1,16 +1,20 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AuthHeading } from '@/components/auth-heading';
+import { Avatar } from '@/components/avatar';
+import { EmptyState } from '@/components/empty-state';
+import { GroupedListItem } from '@/components/grouped-list-item';
+import { IconButton } from '@/components/icon-button';
+import { SmallButton } from '@/components/small-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
 import { IncomingRequest, useFriendsStore } from '@/state/friendsStore';
 
 function RequestRow({ request }: { request: IncomingRequest }) {
-  const theme = useTheme();
   const acceptRequest = useFriendsStore((state) => state.acceptRequest);
   const declineRequest = useFriendsStore((state) => state.declineRequest);
   const [busy, setBusy] = useState(false);
@@ -28,37 +32,37 @@ function RequestRow({ request }: { request: IncomingRequest }) {
   }
 
   return (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText style={styles.rowEmoji}>{request.from.avatarEmoji}</ThemedText>
-      <ThemedText type="default" style={styles.rowName}>
-        {request.from.name}
-      </ThemedText>
-      <Pressable
-        disabled={busy}
-        onPress={() =>
-          router.push({
-            pathname: '/friend/[id]/safety',
-            params: { id: request.from.id, name: request.from.name, avatar: request.from.avatarEmoji },
-          })
-        }
-        accessibilityRole="button"
-        accessibilityLabel={`${request.from.name} melden oder blockieren`}
-        hitSlop={8}
-        style={styles.declineButton}>
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          ⋯
-        </ThemedText>
-      </Pressable>
-      <Pressable disabled={busy} onPress={handleDecline} style={styles.declineButton}>
-        <ThemedText type="smallBold" style={{ color: theme.danger }}>
-          Ablehnen
-        </ThemedText>
-      </Pressable>
-      <Pressable disabled={busy} onPress={handleAccept} style={[styles.acceptButton, { backgroundColor: theme.primary }]}>
-        <ThemedText type="smallBold" style={styles.acceptButtonText}>
-          Annehmen
-        </ThemedText>
-      </Pressable>
+    <View style={styles.row}>
+      <View style={styles.person}>
+        <Avatar emoji={request.from.avatarEmoji} />
+        <View style={styles.personText}>
+          <ThemedText style={styles.name} numberOfLines={1}>
+            {request.from.name}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            möchte dein Freund sein
+          </ThemedText>
+        </View>
+        <IconButton
+          icon="ellipsis-horizontal"
+          label={`${request.from.name} melden oder blockieren`}
+          disabled={busy}
+          onPress={() =>
+            router.push({
+              pathname: '/friend/[id]/safety',
+              params: { id: request.from.id, name: request.from.name, avatar: request.from.avatarEmoji },
+            })
+          }
+        />
+      </View>
+      <View style={styles.actions}>
+        <View style={styles.actionHalf}>
+          <SmallButton label="Ablehnen" variant="danger" onPress={handleDecline} disabled={busy} />
+        </View>
+        <View style={styles.actionHalf}>
+          <SmallButton label="Annehmen" icon="checkmark" variant="primary" onPress={handleAccept} disabled={busy} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -69,26 +73,41 @@ export default function FriendRequestsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           style={styles.list}
           data={incomingRequests}
           keyExtractor={(item) => item.friendshipId}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <ThemedText type="subtitle" style={styles.heading}>
-              Freundschaftsanfragen
-            </ThemedText>
+            <View style={styles.header}>
+              <AuthHeading
+                title="Anfragen"
+                subtitle={
+                  incomingRequests.length === 0
+                    ? undefined
+                    : incomingRequests.length === 1
+                      ? '1 offene Freundschaftsanfrage'
+                      : `${incomingRequests.length} offene Freundschaftsanfragen`
+                }
+              />
+            </View>
           }
           ListEmptyComponent={
-            !loading ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                Keine offenen Anfragen.
-              </ThemedText>
-            ) : null
+            loading ? null : (
+              <EmptyState
+                icon="mail-open-outline"
+                title="Keine offenen Anfragen"
+                body="Wenn dich jemand als Freund hinzufügt, siehst du es hier."
+              />
+            )
           }
-          renderItem={({ item }) => <RequestRow request={item} />}
+          renderItem={({ item, index }) => (
+            <GroupedListItem index={index} count={incomingRequests.length}>
+              <RequestRow request={item} />
+            </GroupedListItem>
+          )}
         />
       </SafeAreaView>
     </ThemedView>
@@ -96,58 +115,15 @@ export default function FriendRequestsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  list: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.one,
-  },
-  heading: {
-    marginTop: Spacing.three,
-    marginBottom: Spacing.two,
-  },
-  separator: {
-    height: Spacing.one,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  rowEmoji: {
-    fontSize: 26,
-    lineHeight: 32,
-  },
-  rowName: {
-    flex: 1,
-  },
-  declineButton: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
-  },
-  acceptButton: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.four,
-  },
-  acceptButtonText: {
-    color: '#FFFFFF',
-  },
-  empty: {
-    textAlign: 'center',
-    marginTop: Spacing.six,
-  },
+  container: { flex: 1 },
+  safeArea: { flex: 1, alignItems: 'center' },
+  list: { flex: 1, width: '100%', maxWidth: MaxContentWidth },
+  listContent: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.five },
+  header: { marginBottom: Spacing.three },
+  row: { padding: Spacing.three, gap: Spacing.three },
+  person: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  personText: { flex: 1, gap: 1 },
+  name: { fontFamily: FontFamily.bodySemi, fontSize: 16, lineHeight: 22 },
+  actions: { flexDirection: 'row', gap: Spacing.two },
+  actionHalf: { flex: 1 },
 });

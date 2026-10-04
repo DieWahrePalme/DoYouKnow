@@ -1,39 +1,31 @@
-import { Href, Slot, router, usePathname } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { FloatingTabBar, TabItem } from '@/components/floating-tab-bar';
+import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, FontFamily, Spacing } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
 import { useFriendsStore } from '@/state/friendsStore';
 
-interface TabDef {
-  href: Href;
-  isActive: (pathname: string) => boolean;
-  emoji: string | null;
-  label: string;
-}
-
-const TABS: TabDef[] = [
-  { href: '/', isActive: (p) => p === '/', emoji: '🏠', label: 'Home' },
-  { href: '/match', isActive: (p) => p === '/match', emoji: '🤝', label: 'Match' },
-  { href: '/favorites', isActive: (p) => p === '/favorites', emoji: '⭐', label: 'Favoriten' },
-  { href: '/profile', isActive: (p) => p === '/profile', emoji: null, label: 'Profil' },
+/** Route name (file in this folder) -> tab bar entry. Order here is the order in the bar. */
+const TABS: TabItem[] = [
+  { key: 'index', icon: 'flame', label: 'Heute' },
+  { key: 'match', icon: 'git-compare', label: 'Match' },
+  { key: 'favorites', icon: 'star', label: 'Favoriten' },
+  { key: 'profile', icon: 'person', label: 'Profil' },
 ];
 
 export default function TabsLayout() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const pathname = usePathname();
+  const theme = Colors.dark;
   const authProfile = useAuthStore((state) => state.profile);
   const profileError = useAuthStore((state) => state.profileError);
   const retryProfileLoad = useAuthStore((state) => state.retryProfileLoad);
   const signOut = useAuthStore((state) => state.signOut);
   const activeUserId = useAppStore((state) => state.activeUserId);
   const syncRealUser = useAppStore((state) => state.syncRealUser);
-  const avatarEmoji = useAppStore((state) => state.users[state.activeUserId]?.avatarEmoji);
 
   useEffect(() => {
     if (authProfile) {
@@ -44,56 +36,53 @@ export default function TabsLayout() {
 
   if (profileError) {
     return (
-      <View style={[styles.container, styles.centered, styles.errorPadding, { backgroundColor: theme.background }]}>
-        <ThemedText type="subtitle" style={styles.centerText}>
-          Profil nicht gefunden
-        </ThemedText>
+      <View style={[styles.container, styles.centered, styles.errorPadding]}>
+        <ThemedText style={styles.errorTitle}>Profil nicht gefunden</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
           {profileError}
         </ThemedText>
-        <Pressable onPress={() => retryProfileLoad()} style={[styles.retryButton, { backgroundColor: theme.primary }]}>
-          <ThemedText type="smallBold" style={styles.retryButtonText}>
-            Erneut versuchen
-          </ThemedText>
-        </Pressable>
-        <Pressable onPress={() => signOut()}>
-          <ThemedText type="small" style={{ color: theme.danger }}>
-            Abmelden
-          </ThemedText>
-        </Pressable>
+        <View style={styles.fullWidth}>
+          <PrimaryButton label="Erneut versuchen" onPress={() => retryProfileLoad()} />
+        </View>
+        <ThemedText type="smallBold" themeColor="danger" onPress={() => signOut()} style={styles.signOut}>
+          Abmelden
+        </ThemedText>
       </View>
     );
   }
 
   if (!activeUserId) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, styles.centered]}>
         <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
   }
 
+  // Real tabs: each screen is mounted once (on first visit) and then kept, so
+  // switching back is instant instead of rebuilding the screen.
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.content}>
-        <Slot />
-      </View>
-      <SafeAreaView
-        edges={['bottom']}
-        style={[styles.tabBar, { backgroundColor: theme.background, borderTopColor: theme.backgroundSelected }]}>
-        {TABS.map((tab) => {
-          const active = tab.isActive(pathname);
-          return (
-            <Pressable key={tab.label} style={styles.tabButton} onPress={() => router.replace(tab.href)}>
-              <Text style={[styles.tabEmoji, { opacity: active ? 1 : 0.5 }]}>{tab.emoji ?? avatarEmoji}</Text>
-              <Text style={[styles.tabLabel, { color: active ? theme.text : theme.textSecondary }]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </SafeAreaView>
-    </View>
+    <Tabs
+      initialRouteName="index"
+      screenOptions={{
+        headerShown: false,
+        // No navigator animation or freezing: both can leave a tab blank after quick switches on
+        // device. Screens fade themselves in with FocusFade instead.
+        animation: 'none',
+        freezeOnBlur: false,
+        sceneStyle: { backgroundColor: 'transparent' },
+      }}
+      tabBar={({ state, navigation }) => (
+        <FloatingTabBar
+          tabs={TABS}
+          activeKey={state.routes[state.index]?.name ?? 'index'}
+          onSelect={(key) => navigation.navigate(key)}
+        />
+      )}>
+      {TABS.map((tab) => (
+        <Tabs.Screen key={tab.key} name={tab.key} />
+      ))}
+    </Tabs>
   );
 }
 
@@ -109,36 +98,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     gap: Spacing.three,
   },
+  errorTitle: {
+    fontFamily: FontFamily.display,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.8,
+    textAlign: 'center',
+    color: '#F5F5F7',
+  },
   centerText: {
     textAlign: 'center',
   },
-  retryButton: {
+  fullWidth: {
+    alignSelf: 'stretch',
+  },
+  signOut: {
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-  },
-  content: {
-    flex: 1,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.two,
-    gap: 2,
-  },
-  tabEmoji: {
-    fontSize: 20,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
   },
 });

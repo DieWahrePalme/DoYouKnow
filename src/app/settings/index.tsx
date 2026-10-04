@@ -1,11 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
+import { GroupedCard } from '@/components/grouped-card';
 import { ListRow } from '@/components/list-row';
+import { Screen } from '@/components/screen';
+import { SectionLabel } from '@/components/section-label';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
@@ -15,98 +19,91 @@ export default function SettingsScreen() {
   const profile = useAppStore((state) => state.users[state.activeUserId]);
   const email = useAuthStore((state) => state.session?.user.email);
   const signOut = useAuthStore((state) => state.signOut);
+  const version = Constants.expoConfig?.version;
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <ThemedText type="title" style={styles.heading}>
-            Einstellungen
+    <Screen title="Einstellungen">
+      <View style={[styles.profile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <Avatar emoji={profile?.avatarEmoji ?? '🙂'} size={64} />
+        <View style={styles.profileText}>
+          <ThemedText style={styles.profileName} numberOfLines={1}>
+            {profile?.name}
           </ThemedText>
           {email ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.email}>
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
               {email}
             </ThemedText>
           ) : null}
+        </View>
+      </View>
 
-          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
-            Account
-          </ThemedText>
-          <View style={styles.section}>
-            <ListRow
-              icon={profile?.avatarEmoji ?? '🙂'}
-              title="Profilbild ändern"
-              onPress={() => router.push('/settings/avatar')}
-            />
-            <ListRow
-              icon="👤"
-              title="Benutzername ändern"
-              subtitle={profile?.name}
-              onPress={() => router.push('/settings/username')}
-            />
-            <ListRow icon="🔒" title="Passwort ändern" onPress={() => router.push('/settings/password')} />
-          </View>
+      <View>
+        <SectionLabel>Account</SectionLabel>
+        <GroupedCard>
+          <ListRow iconName="happy-outline" title="Profilbild ändern" onPress={() => router.push('/settings/avatar')} />
+          <ListRow
+            iconName="at"
+            title="Benutzername ändern"
+            subtitle={profile?.name}
+            onPress={() => router.push('/settings/username')}
+          />
+          <ListRow iconName="lock-closed-outline" title="Passwort ändern" onPress={() => router.push('/settings/password')} />
+        </GroupedCard>
+      </View>
 
-          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
-            Datenschutz
-          </ThemedText>
-          <View style={styles.section}>
-            <ListRow
-              icon="🛡️"
-              title="Datenschutz & Konto"
-              subtitle="Datenschutz, Blockierte, Konto löschen"
-              onPress={() => router.push('/settings/privacy')}
-            />
-          </View>
+      <View>
+        <SectionLabel>Datenschutz</SectionLabel>
+        <GroupedCard>
+          <ListRow
+            iconName="shield-checkmark-outline"
+            title="Datenschutz & Konto"
+            subtitle="Datenschutz, Blockierte, Konto löschen"
+            onPress={() => router.push('/settings/privacy')}
+          />
+        </GroupedCard>
+      </View>
 
-          <Pressable
-            onPress={() => signOut()}
-            style={[styles.signOutButton, { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText type="smallBold" style={{ color: theme.danger }}>
-              Abmelden
-            </ThemedText>
-          </Pressable>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+      <Pressable
+        onPress={() => signOut()}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.signOut,
+          { borderColor: theme.border, backgroundColor: pressed ? theme.backgroundSelected : 'rgba(20,20,26,0.6)' },
+        ]}>
+        <Ionicons name="log-out-outline" size={20} color={theme.danger} />
+        <ThemedText style={[styles.signOutLabel, { color: theme.danger }]}>Abmelden</ThemedText>
+      </Pressable>
+
+      {version ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.version}>
+          DoYouKnow · Version {version}
+        </ThemedText>
+      ) : null}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+  profile: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  scroll: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-  },
-  heading: {
-    fontSize: 32,
-    lineHeight: 40,
+  profileText: { flex: 1, gap: 2 },
+  profileName: { fontFamily: FontFamily.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.6, color: '#F5F5F7' },
+  signOut: {
     marginTop: Spacing.three,
-  },
-  email: {
-    marginTop: -Spacing.one,
-    marginBottom: Spacing.two,
-  },
-  sectionLabel: {
-    marginTop: Spacing.four,
-    marginBottom: Spacing.one,
-    textTransform: 'uppercase',
-  },
-  section: {
-    gap: Spacing.one,
-  },
-  signOutButton: {
-    marginTop: Spacing.five,
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
+    minHeight: 54,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
+  signOutLabel: { fontFamily: FontFamily.bodyBold, fontSize: 16, lineHeight: 22 },
+  version: { textAlign: 'center', fontSize: 12 },
 });

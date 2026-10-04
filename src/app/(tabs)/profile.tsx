@@ -1,12 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Skeleton } from '@/components/skeleton';
+import { FocusFade } from '@/components/focus-fade';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { CATEGORIES } from '@/data/mockData';
+import { useAfterInteractions } from '@/hooks/use-after-interactions';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -23,10 +26,10 @@ import { formatRelative } from '@/utils/formatRelative';
 function StatColumn({ value, label, onPress }: { value: number; label: string; onPress?: () => void }) {
   const content = (
     <>
-      <ThemedText type="subtitle" style={styles.statValue}>
+      <ThemedText style={styles.statValue} maxFontSizeMultiplier={1.2}>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel} numberOfLines={1} maxFontSizeMultiplier={1.2}>
         {label}
       </ThemedText>
     </>
@@ -34,35 +37,39 @@ function StatColumn({ value, label, onPress }: { value: number; label: string; o
 
   if (onPress) {
     return (
-      <Pressable style={styles.statColumn} onPress={onPress}>
+      <Pressable
+        style={styles.statColumn}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${value} ${label}`}
+        hitSlop={8}>
         {content}
       </Pressable>
     );
   }
-  return <View style={styles.statColumn}>{content}</View>;
+  return (
+    <View style={styles.statColumn} accessible accessibilityLabel={`${value} ${label}`}>
+      {content}
+    </View>
+  );
 }
 
-function CategoryChip({
-  icon,
-  label,
-  active,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+function CategoryChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      hitSlop={{ top: 4, bottom: 4 }}
       style={[
         styles.chip,
-        { backgroundColor: active ? theme.primary : theme.backgroundElement },
+        {
+          backgroundColor: active ? theme.primary : 'transparent',
+          borderColor: active ? theme.primary : theme.border,
+        },
       ]}>
-      <ThemedText style={styles.chipIcon}>{icon}</ThemedText>
-      <ThemedText type="smallBold" style={{ color: active ? '#FFFFFF' : theme.text }}>
+      <ThemedText type="smallBold" maxFontSizeMultiplier={1.4} style={{ color: active ? theme.primaryText : theme.text }}>
         {label}
       </ThemedText>
     </Pressable>
@@ -97,9 +104,18 @@ function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean 
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId: group.id } })}
-      style={[styles.tile, { backgroundColor: theme.backgroundElement }]}>
+      accessibilityRole="button"
+      accessibilityLabel={[
+        group.name,
+        caption,
+        isToday ? 'heute dran' : null,
+        waitingCount > 0 ? `${waitingCount} warten auf deine Antworten` : null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
+      style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       {isToday ? (
-        <View style={[styles.todayBadge, { backgroundColor: theme.background, borderColor: theme.text }]}>
+        <View style={[styles.todayBadge, { backgroundColor: theme.primary }]}>
           <ThemedText style={styles.todayBadgeText}>Heute</ThemedText>
         </View>
       ) : null}
@@ -109,13 +125,27 @@ function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean 
         </View>
       ) : null}
       <ThemedText style={styles.tileIcon}>{group.icon}</ThemedText>
-      <ThemedText type="smallBold" style={styles.tileName} numberOfLines={1}>
+      <ThemedText type="smallBold" style={styles.tileName} numberOfLines={1} maxFontSizeMultiplier={1.3}>
         {group.name}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" maxFontSizeMultiplier={1.3}>
         {caption}
       </ThemedText>
     </Pressable>
+  );
+}
+
+const GRID_COLUMNS = 3;
+const SKELETON_TILES = 12;
+
+/** Placeholder tiles shown for the first frame(s) while the real grid mounts. */
+function SkeletonGrid() {
+  return (
+    <View style={styles.skeletonGrid} accessible accessibilityLabel="Themen werden geladen">
+      {Array.from({ length: SKELETON_TILES }, (_, i) => (
+        <Skeleton key={i} style={styles.skeletonTile} />
+      ))}
+    </View>
   );
 }
 
@@ -133,57 +163,74 @@ export default function ProfileScreen() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const visibleGroups = activeCategory ? groups.filter((g) => g.category === activeCategory) : groups;
 
+  // First frame shows the header and a skeleton grid; the real tiles mount
+  // once the tab transition is done, so opening Profil never stalls.
+  const ready = useAfterInteractions();
+
+  const header = (
+    <>
+      <View style={styles.headerRow}>
+        <View style={[styles.avatar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <ThemedText style={styles.avatarEmoji}>{profile.avatarEmoji}</ThemedText>
+        </View>
+
+        <View style={styles.stats}>
+          <StatColumn value={friendCount} label="Freunde" onPress={() => router.push('/friends')} />
+          <StatColumn value={answeredCount} label="Beantwortet" />
+          <StatColumn value={collectedCount} label="Gesammelt" />
+        </View>
+
+        <Pressable
+          onPress={() => router.push('/settings')}
+          accessibilityRole="button"
+          accessibilityLabel="Einstellungen"
+          style={[styles.menuButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <Ionicons name="menu" size={22} color={theme.text} />
+        </Pressable>
+      </View>
+
+      <ThemedText style={styles.username} numberOfLines={1} accessibilityRole="header" maxFontSizeMultiplier={1.5}>
+        {profile.name}
+      </ThemedText>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipRow}
+        contentContainerStyle={styles.chipRowContent}>
+        <CategoryChip label="Alle" active={activeCategory === null} onPress={() => setActiveCategory(null)} />
+        {CATEGORIES.map((category) => (
+          <CategoryChip
+            key={category.id}
+            label={category.name}
+            active={activeCategory === category.id}
+            onPress={() => setActiveCategory(category.id)}
+          />
+        ))}
+      </ScrollView>
+      <View style={styles.gridGap} />
+    </>
+  );
+
   return (
-    <ThemedView style={styles.container}>
+    <FocusFade style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-          <View style={styles.topBar}>
-            <View style={styles.topBarSpacer} />
-            <Pressable
-              onPress={() => router.push('/settings')}
-              hitSlop={12}
-              style={[styles.menuButton, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText style={styles.menuIcon}>☰</ThemedText>
-            </Pressable>
-          </View>
-
-          <ThemedText type="small" themeColor="textSecondary" style={styles.username}>
-            {profile.name}
-          </ThemedText>
-
-          <View style={styles.headerRow}>
-            <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
-              <ThemedText style={styles.avatarEmoji}>{profile.avatarEmoji}</ThemedText>
-            </View>
-
-            <View style={styles.stats}>
-              <StatColumn value={friendCount} label="Freunde" onPress={() => router.push('/friends')} />
-              <StatColumn value={answeredCount} label="Beantwortet" />
-              <StatColumn value={collectedCount} label="Gesammelt" />
-            </View>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
-            <CategoryChip icon="✨" label="Alle" active={activeCategory === null} onPress={() => setActiveCategory(null)} />
-            {CATEGORIES.map((category) => (
-              <CategoryChip
-                key={category.id}
-                icon={category.icon}
-                label={category.name}
-                active={activeCategory === category.id}
-                onPress={() => setActiveCategory(category.id)}
-              />
-            ))}
-          </ScrollView>
-
-          <View style={styles.grid}>
-            {visibleGroups.map((group) => (
-              <GroupTile key={group.id} group={group} isToday={group.id === todaysGroupId} />
-            ))}
-          </View>
-        </ScrollView>
+        <FlatList
+          style={styles.scrollView}
+          contentContainerStyle={styles.scroll}
+          data={ready ? visibleGroups : []}
+          keyExtractor={(group) => group.id}
+          numColumns={GRID_COLUMNS}
+          columnWrapperStyle={styles.gridRow}
+          initialNumToRender={12}
+          windowSize={7}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={header}
+          ListEmptyComponent={ready ? null : <SkeletonGrid />}
+          renderItem={({ item }) => <GroupTile group={item} isToday={item.id === todaysGroupId} />}
+        />
       </SafeAreaView>
-    </ThemedView>
+    </FocusFade>
   );
 }
 
@@ -202,88 +249,98 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.three,
-  },
-  topBarSpacer: {
-    flex: 1,
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuIcon: {
-    fontSize: 18,
-  },
-  username: {
-    marginTop: Spacing.two,
+    paddingBottom: BottomTabInset + Spacing.four,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.four,
-    marginTop: Spacing.one,
+    gap: Spacing.three,
+    marginTop: Spacing.four,
   },
   avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarEmoji: {
-    fontSize: 38,
-    lineHeight: 48,
+    fontSize: 32,
+    lineHeight: 40,
   },
   stats: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
   },
   statColumn: {
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
   },
   statValue: {
-    fontSize: 20,
-    lineHeight: 24,
+    fontFamily: FontFamily.display,
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.5,
+    color: '#F5F5F7',
+  },
+  statLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  username: {
+    fontFamily: FontFamily.display,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.8,
+    color: '#F5F5F7',
+    marginTop: Spacing.three,
   },
   chipRow: {
-    marginTop: Spacing.four,
+    marginTop: Spacing.three,
+    marginHorizontal: -Spacing.three,
   },
   chipRowContent: {
     gap: Spacing.two,
-    paddingRight: Spacing.three,
+    paddingHorizontal: Spacing.three,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.five,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
-  chipIcon: {
-    fontSize: 15,
+  gridGap: {
+    height: Spacing.three,
   },
-  grid: {
+  gridRow: {
+    gap: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  skeletonGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
-    marginTop: Spacing.three,
+  },
+  skeletonTile: {
+    width: '31.5%',
+    aspectRatio: 1,
+    borderRadius: 20,
   },
   tile: {
-    width: '31%',
+    width: '31.5%',
     aspectRatio: 1,
-    borderRadius: Spacing.three,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
@@ -291,37 +348,40 @@ const styles = StyleSheet.create({
   },
   tileBadge: {
     position: 'absolute',
-    top: Spacing.one,
-    right: Spacing.one,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: Spacing.two,
+    right: Spacing.two,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
   tileBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 11,
+    lineHeight: 14,
   },
   todayBadge: {
     position: 'absolute',
-    top: Spacing.one,
-    left: Spacing.one,
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    top: Spacing.two,
+    left: Spacing.two,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   todayBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 10,
+    lineHeight: 13,
+    color: '#FFFFFF',
   },
   tileIcon: {
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 28,
+    lineHeight: 34,
   },
   tileName: {
     textAlign: 'center',
+    fontSize: 13,
   },
 });

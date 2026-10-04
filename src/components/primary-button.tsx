@@ -1,8 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { PrimaryGradient, Spacing } from '@/constants/theme';
+import { FontFamily, Radius } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface PrimaryButtonProps {
   label: string;
@@ -11,46 +11,46 @@ interface PrimaryButtonProps {
   disabled?: boolean;
 }
 
+/** The one big accent action on a screen: solid accent pill. */
 export function PrimaryButton({ label, onPress, loading, disabled }: PrimaryButtonProps) {
+  const theme = useTheme();
   const isDisabled = disabled || loading;
 
   return (
-    <Pressable onPress={onPress} disabled={isDisabled} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
-      <LinearGradient
-        colors={PrimaryGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.gradient, isDisabled && styles.disabled]}>
-        {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <ThemedText type="smallBold" style={styles.label}>
-            {label}
-          </ThemedText>
-        )}
-      </LinearGradient>
+    <Pressable
+      onPress={onPress}
+      disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      style={({ pressed }) => [
+        styles.button,
+        { backgroundColor: isDisabled ? theme.backgroundSelected : theme.primary, opacity: pressed ? 0.85 : 1 },
+        pressed && styles.pressed,
+      ]}>
+      {loading ? (
+        <ActivityIndicator color={theme.primaryText} />
+      ) : (
+        <ThemedText style={[styles.label, { color: isDisabled ? theme.textSecondary : theme.primaryText }]}>
+          {label}
+        </ThemedText>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    borderRadius: Spacing.four,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  gradient: {
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.four,
+  button: {
+    minHeight: 54,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  disabled: {
-    opacity: 0.5,
+  pressed: {
+    transform: [{ scale: 0.98 }],
   },
   label: {
-    color: '#FFFFFF',
+    fontFamily: FontFamily.bodyBold,
     fontSize: 16,
+    lineHeight: 22,
   },
 });

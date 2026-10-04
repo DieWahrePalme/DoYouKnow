@@ -3,16 +3,15 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AuthHeading } from '@/components/auth-heading';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/state/authStore';
 
 export default function LoginScreen() {
-  const theme = useTheme();
   const signIn = useAuthStore((state) => state.signIn);
   const error = useAuthStore((state) => state.error);
   const clearError = useAuthStore((state) => state.clearError);
@@ -34,12 +33,7 @@ export default function LoginScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <ThemedText type="subtitle" style={styles.heading}>
-            Willkommen zurück
-          </ThemedText>
-          <ThemedText type="default" themeColor="textSecondary" style={styles.subheading}>
-            Melde dich mit deinem Account an.
-          </ThemedText>
+          <AuthHeading title="Willkommen zurück" subtitle="Melde dich mit deinem Account an." />
 
           <TextField
             label="E-Mail"
@@ -61,7 +55,7 @@ export default function LoginScreen() {
           />
 
           {error ? (
-            <ThemedText type="small" style={{ color: theme.danger }}>
+            <ThemedText type="small" themeColor="danger">
               {error}
             </ThemedText>
           ) : null}
@@ -97,18 +91,12 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.six,
     gap: Spacing.three,
   },
-  heading: {
-    marginBottom: -Spacing.one,
-  },
-  subheading: {
-    marginBottom: Spacing.two,
-  },
   linkRow: {
     alignItems: 'center',
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.two,
   },
 });
