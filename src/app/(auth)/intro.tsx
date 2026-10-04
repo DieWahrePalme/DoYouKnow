@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -7,7 +8,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Question } from '@/types';
 
@@ -19,24 +20,24 @@ const DEMO_QUESTIONS: Question[] = [
 ];
 
 interface Slide {
-  emoji: string;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   body: string;
 }
 
 const SLIDES: Slide[] = [
   {
-    emoji: '🃏',
+    icon: 'albums-outline',
     title: 'Jeden Tag eine Karte über dich',
     body: '5 ehrliche Fragen zu einem Thema. Du beantwortest sie für dich – das ist deine Wahrheit.',
   },
   {
-    emoji: '👆',
+    icon: 'hand-left-outline',
     title: 'Probier’s aus!',
     body: 'Rechts = Ja · Links = Nein · Hoch = Eher ja · Runter = Eher nein · 2× tippen = Nie',
   },
   {
-    emoji: '🔥',
+    icon: 'flame',
     title: 'Wie gut kennen dich deine Freunde?',
     body:
       'Deine Freunde raten deine Karte, du ihre. Danach seht ihr, wer wen am besten kennt – ' +
@@ -68,7 +69,7 @@ export default function IntroScreen() {
             {SLIDES.map((s, i) => (
               <View
                 key={s.title}
-                style={[styles.dot, { backgroundColor: i === index ? theme.primary : theme.backgroundSelected }]}
+                style={[styles.dot, i === index && styles.dotActive, { backgroundColor: i === index ? theme.primary : theme.backgroundSelected }]}
               />
             ))}
           </View>
@@ -81,24 +82,22 @@ export default function IntroScreen() {
           ) : null}
         </View>
 
-        <View style={styles.textBlock}>
-          <ThemedText style={styles.emoji}>{slide.emoji}</ThemedText>
-          <ThemedText type="subtitle" style={styles.center}>
-            {slide.title}
-          </ThemedText>
-          <ThemedText type="default" themeColor="textSecondary" style={styles.center}>
+        <View style={[styles.textBlock, index !== DEMO_SLIDE && styles.textBlockCentered]}>
+          <View style={[styles.iconCircle, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <Ionicons name={slide.icon} size={30} color={theme.primary} />
+          </View>
+          <ThemedText style={styles.slideTitle}>{slide.title}</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.slideBody}>
             {slide.body}
           </ThemedText>
         </View>
 
-        <View style={styles.stage}>
-          {index === DEMO_SLIDE ? (
-            demoDone ? (
+        {index === DEMO_SLIDE ? (
+          <View style={styles.stage}>
+            {demoDone ? (
               <View style={styles.demoDone}>
-                <ThemedText style={styles.emoji}>✅</ThemedText>
-                <ThemedText type="subtitle" style={styles.center}>
-                  Genau so!
-                </ThemedText>
+                <Ionicons name="checkmark-circle" size={56} color={theme.success} />
+                <ThemedText style={styles.slideTitle}>Genau so!</ThemedText>
                 <Pressable
                   onPress={() => {
                     setDemoDone(false);
@@ -112,9 +111,9 @@ export default function IntroScreen() {
               </View>
             ) : (
               <SwipeDeck key={demoRound} questions={DEMO_QUESTIONS} onComplete={() => setDemoDone(true)} />
-            )
-          ) : null}
-        </View>
+            )}
+          </View>
+        ) : null}
 
         <PrimaryButton label={isLast ? 'Konto erstellen' : 'Weiter'} onPress={next} />
       </SafeAreaView>
@@ -143,21 +142,46 @@ const styles = StyleSheet.create({
   },
   dots: {
     flexDirection: 'row',
-    gap: Spacing.one,
+    gap: 6,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
+  dotActive: {
+    width: 24,
+  },
   textBlock: {
     alignItems: 'center',
     gap: Spacing.two,
     marginTop: Spacing.three,
   },
-  emoji: {
-    fontSize: 48,
-    lineHeight: 60,
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.one,
+  },
+  slideTitle: {
+    fontFamily: FontFamily.display,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  slideBody: {
+    textAlign: 'center',
+    fontSize: 16,
+    lineHeight: 23,
+  },
+  textBlockCentered: {
+    flex: 1,
+    justifyContent: 'center',
+    marginTop: 0,
   },
   center: {
     textAlign: 'center',

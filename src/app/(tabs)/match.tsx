@@ -3,10 +3,12 @@ import { FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
+import { EmptyState } from '@/components/empty-state';
+import { GroupedListItem } from '@/components/grouped-list-item';
 import { ListRow } from '@/components/list-row';
+import { FocusFade } from '@/components/focus-fade';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
 import { matchWithFriend, useAppStore } from '@/state/appStore';
 import { UserProfile } from '@/types';
 
@@ -48,14 +50,13 @@ export default function MatchScreen() {
   );
 
   return (
-    <ThemedView style={styles.container}>
+    <FocusFade style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <FlatList
           style={styles.list}
           data={friends.length ? ranked : []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
           ListHeaderComponent={
             <>
               <ThemedText type="title" style={styles.heading}>
@@ -66,10 +67,21 @@ export default function MatchScreen() {
               </ThemedText>
             </>
           }
-          renderItem={({ item }) => <MatchRow friend={item} />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="git-compare-outline"
+              title="Noch keine Freunde"
+              body="Sobald du Freunde hast, siehst du hier, wie ähnlich eure Antworten sind."
+            />
+          }
+          renderItem={({ item, index }) => (
+            <GroupedListItem index={index} count={ranked.length}>
+              <MatchRow friend={item} />
+            </GroupedListItem>
+          )}
         />
       </SafeAreaView>
-    </ThemedView>
+    </FocusFade>
   );
 }
 
@@ -88,21 +100,24 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.one,
   },
   heading: {
-    fontSize: 32,
-    lineHeight: 40,
-    marginTop: Spacing.four,
+    fontSize: 38,
+    lineHeight: 42,
+    marginTop: Spacing.five,
   },
   subheading: {
-    marginBottom: Spacing.three,
+    marginTop: Spacing.one,
+    marginBottom: Spacing.four,
   },
   separator: {
     height: Spacing.one,
   },
   percent: {
-    fontSize: 20,
+    fontFamily: FontFamily.display,
+    fontSize: 26,
+    lineHeight: 30,
   },
 });

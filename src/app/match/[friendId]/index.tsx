@@ -1,13 +1,17 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
+import { Avatar } from '@/components/avatar';
+import { EmptyState } from '@/components/empty-state';
+import { GroupedCard } from '@/components/grouped-card';
 import { ListRow } from '@/components/list-row';
+import { Screen } from '@/components/screen';
+import { ScoreHero } from '@/components/score-hero';
+import { SectionLabel } from '@/components/section-label';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { CategoryMatchResult, matchByCategory, matchWithFriend, useAppStore } from '@/state/appStore';
 
 function CategoryRow({ friendId, result }: { friendId: string; result: CategoryMatchResult }) {
@@ -20,10 +24,9 @@ function CategoryRow({ friendId, result }: { friendId: string; result: CategoryM
       title={result.category.name}
       subtitle={subtitle}
       trailing={
-        <ThemedText type="subtitle" style={styles.percent}>
-          {result.percent === null ? '–' : `${result.percent}%`}
-        </ThemedText>
+        <ThemedText style={styles.percent}>{result.percent === null ? '–' : `${result.percent}%`}</ThemedText>
       }
+      chevron
       onPress={() =>
         router.push({
           pathname: '/match/[friendId]/[categoryId]',
@@ -52,94 +55,42 @@ export default function MatchCategoriesScreen() {
 
   if (!friend) {
     return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <ThemedText type="default">Diesen Freund gibt es nicht (mehr).</ThemedText>
-        </SafeAreaView>
-      </ThemedView>
+      <Screen>
+        <EmptyState icon="person-outline" title="Nicht gefunden" body="Diesen Freund gibt es nicht (mehr)." />
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <FlatList
-          style={styles.list}
-          data={ranked}
-          keyExtractor={(item) => item.category.id}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
-          ListHeaderComponent={
-            <>
-              <ThemedText type="subtitle" style={styles.heading}>
-                {friend.avatarEmoji} {friend.name}
-              </ThemedText>
+    <Screen>
+      <View style={styles.person}>
+        <Avatar emoji={friend.avatarEmoji} size={72} />
+        <ThemedText style={styles.name}>{friend.name}</ThemedText>
+      </View>
 
-              <ThemedView type="backgroundElement" style={styles.scoreCard}>
-                <ThemedText type="title" style={styles.centerText}>
-                  {overall.percent === null ? '–' : `${overall.percent}%`}
-                </ThemedText>
-                <ThemedText type="default" themeColor="textSecondary" style={styles.centerText}>
-                  {overall.total > 0
-                    ? `${overall.matches} von ${overall.total} vergleichbaren Antworten gleich`
-                    : 'Noch keine gemeinsamen Antworten - beantwortet erst ein paar der gleichen Themen.'}
-                </ThemedText>
-              </ThemedView>
+      <ScoreHero
+        percent={overall.percent}
+        caption={
+          overall.total > 0
+            ? `${overall.matches} von ${overall.total} vergleichbaren Antworten gleich`
+            : 'Noch keine gemeinsamen Antworten - beantwortet erst ein paar der gleichen Themen.'
+        }
+      />
 
-              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLabel}>
-                Kategorien
-              </ThemedText>
-            </>
-          }
-          renderItem={({ item }) => <CategoryRow friendId={friendId ?? ''} result={item} />}
-        />
-      </SafeAreaView>
-    </ThemedView>
+      <View>
+        <SectionLabel>Kategorien</SectionLabel>
+        <GroupedCard>
+          {ranked.map((item) => (
+            <CategoryRow key={item.category.id} friendId={friendId ?? ''} result={item} />
+          ))}
+        </GroupedCard>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  list: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.one,
-  },
-  heading: {
-    textAlign: 'center',
-    marginTop: Spacing.three,
-  },
-  scoreCard: {
-    borderRadius: Spacing.four,
-    padding: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginTop: Spacing.two,
-    marginBottom: Spacing.one,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  sectionLabel: {
-    marginTop: Spacing.three,
-    marginBottom: Spacing.one,
-    textTransform: 'uppercase',
-  },
-  separator: {
-    height: Spacing.one,
-  },
-  percent: {
-    fontSize: 20,
-  },
+  person: { alignItems: 'center', gap: Spacing.two },
+  name: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.8 },
+  percent: { fontFamily: FontFamily.display, fontSize: 20, lineHeight: 24 },
 });

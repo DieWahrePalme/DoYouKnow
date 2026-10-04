@@ -11,10 +11,10 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         title: '',
-        headerStyle: { backgroundColor: theme.background },
+        headerStyle: { backgroundColor: 'transparent' },
         headerTintColor: theme.text,
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: theme.background },
+        contentStyle: { backgroundColor: 'transparent' },
       }}>
       <Stack.Screen name="welcome" />
       <Stack.Screen name="login" options={{ headerShown: true }} />

@@ -1,10 +1,9 @@
 import { Stack } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 
+import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { PRIVACY_POLICY, PRIVACY_POLICY_UPDATED } from '@/data/privacyPolicy';
 
 /**
@@ -14,45 +13,24 @@ import { PRIVACY_POLICY, PRIVACY_POLICY_UPDATED } from '@/data/privacyPolicy';
  */
 export default function PrivacyPolicyScreen() {
   return (
-    <ThemedView style={styles.container}>
+    <>
       <Stack.Screen options={{ title: 'Datenschutz' }} />
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <ThemedText type="subtitle">Datenschutzerklärung</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Stand: {PRIVACY_POLICY_UPDATED}
-          </ThemedText>
-          {PRIVACY_POLICY.map((section) => (
-            <View key={section.title} style={styles.section}>
-              <ThemedText type="smallBold">{section.title}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {section.body}
-              </ThemedText>
-            </View>
-          ))}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+      <Screen title="Datenschutzerklärung" subtitle={`Stand: ${PRIVACY_POLICY_UPDATED}`}>
+        {PRIVACY_POLICY.map((section) => (
+          <View key={section.title} style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.sectionBody}>
+              {section.body}
+            </ThemedText>
+          </View>
+        ))}
+      </Screen>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  scroll: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.six,
-    gap: Spacing.three,
-  },
-  section: {
-    gap: Spacing.one,
-  },
+  section: { gap: Spacing.one, marginTop: Spacing.two },
+  sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, lineHeight: 24, letterSpacing: -0.4 },
+  sectionBody: { fontSize: 15, lineHeight: 23 },
 });

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
@@ -6,81 +7,66 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '@/components/primary-button';
 import { SecondaryButton } from '@/components/secondary-button';
 import { ThemedText } from '@/components/themed-text';
-import { MaxContentWidth, PrimaryGradient, Spacing } from '@/constants/theme';
+import { FontFamily, MaxContentWidth, PrimaryGradient, Spacing } from '@/constants/theme';
 
 export default function WelcomeScreen() {
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={PrimaryGradient} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.hero}>
-        <SafeAreaView style={styles.heroContent}>
-          <View style={styles.logoBadge}>
-            <ThemedText style={styles.logoEmoji}>🤔</ThemedText>
-          </View>
-          <ThemedText type="title" style={styles.heroTitle}>
-            Do You Know?
-          </ThemedText>
-          <ThemedText type="default" style={styles.heroSubtitle}>
-            Beantworte ehrliche Fragen und finde heraus, wie gut deine Freunde dich wirklich kennen.
-          </ThemedText>
-        </SafeAreaView>
-      </LinearGradient>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.hero}>
+        <LinearGradient colors={PrimaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logo}>
+          <Ionicons name="help" size={44} color="#FFFFFF" />
+        </LinearGradient>
+        <ThemedText style={styles.title}>Do You{'\n'}Know?</ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.subtitle}>
+          Beantworte ehrliche Fragen und finde heraus, wie gut deine Freunde dich wirklich kennen.
+        </ThemedText>
+      </View>
 
-      <SafeAreaView style={styles.actions} edges={['bottom']}>
+      <View style={styles.actions}>
         <PrimaryButton label="Los geht’s" onPress={() => router.push('/(auth)/intro')} />
         <SecondaryButton label="Ich habe schon ein Konto" onPress={() => router.push('/(auth)/login')} />
-      </SafeAreaView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0C',
-  },
-  hero: {
-    flex: 1,
-  },
-  heroContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.five,
-    gap: Spacing.three,
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.three,
   },
-  logoBadge: {
-    width: 96,
-    height: 96,
+  hero: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.three,
+  },
+  logo: {
+    width: 88,
+    height: 88,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.two,
   },
-  logoEmoji: {
-    fontSize: 48,
-    // ThemedText's default lineHeight (24) is half this size - iOS clips the
-    // glyph to the line box, so without this the emoji rendered cut in half.
-    lineHeight: 60,
-  },
-  heroTitle: {
-    color: '#FFFFFF',
+  title: {
+    fontFamily: FontFamily.display,
+    fontSize: 60,
+    lineHeight: 62,
+    letterSpacing: -2.2,
     textAlign: 'center',
   },
-  heroSubtitle: {
-    color: 'rgba(255,255,255,0.85)',
+  subtitle: {
     textAlign: 'center',
     fontSize: 17,
-    lineHeight: 24,
+    lineHeight: 25,
+    paddingHorizontal: Spacing.three,
   },
   actions: {
-    padding: Spacing.four,
     gap: Spacing.two,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
   },
 });

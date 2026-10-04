@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GuessHeader } from '@/components/guess-header';
 import { ResultView } from '@/components/result-view';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { ThemedText } from '@/components/themed-text';
@@ -44,24 +46,23 @@ export default function FriendGroupGuessScreen() {
 
   const guess = localGuess ?? existingGuess;
 
+  const header = (
+    <GuessHeader avatarEmoji={friend.avatarEmoji} kicker={`Du rätst für ${friend.name}`} topicName={group.name} />
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="subtitle" style={styles.heading}>
-          {group.icon} {group.name}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.subheading}>
-          {friend.avatarEmoji} {friend.name}
-        </ThemedText>
-
         {!guess ? (
-          <SwipeDeck questions={group.questions} onComplete={handleComplete} />
+          <SwipeDeck questions={group.questions} onComplete={handleComplete} header={header} />
         ) : (
           <>
+            <View style={styles.header}>{header}</View>
             <ResultView subjectName={friend.name} questions={group.questions} guesses={guess} truth={truth} />
             <Pressable
               onPress={() => router.back()}
-              style={[styles.button, { backgroundColor: theme.backgroundSelected }]}>
+              style={[styles.button, { borderColor: theme.border }]}>
+              <Ionicons name="arrow-back" size={18} color={theme.text} />
               <ThemedText type="smallBold">Zurück</ThemedText>
             </Pressable>
           </>
@@ -81,19 +82,21 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.four,
   },
-  heading: {
-    marginTop: Spacing.three,
-  },
-  subheading: {
-    marginBottom: Spacing.three,
+  header: {
+    marginTop: Spacing.two,
+    marginBottom: Spacing.four,
   },
   button: {
     marginTop: Spacing.three,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.four,
-    alignSelf: 'center',
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderRadius: 999,
+    borderWidth: 1,
   },
 });

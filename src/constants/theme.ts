@@ -7,37 +7,80 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
-  light: {
-    text: '#0B0B0F',
-    background: '#F5F5F8',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#ECEBFB',
-    textSecondary: '#6B6D76',
-    primary: '#6C5CE7',
-    primaryText: '#FFFFFF',
-    border: '#E4E3EC',
-    success: '#1DBF73',
-    danger: '#FF3B5C',
-  },
-  dark: {
-    text: '#FFFFFF',
-    background: '#0A0A0C',
-    backgroundElement: '#18181C',
-    backgroundSelected: '#242430',
-    textSecondary: '#9A9AA5',
-    primary: '#8B7CF8',
-    primaryText: '#FFFFFF',
-    border: '#2A2A32',
-    success: '#2ED573',
-    danger: '#FF4D6D',
-  },
-} as const;
+/** Every colour a component may ask for; both schemes define all of them. */
+export interface Palette {
+  text: string;
+  background: string;
+  backgroundElement: string;
+  backgroundSelected: string;
+  textSecondary: string;
+  /** Accent used for text/links (the plain accent is too dark for text on the dark scheme). */
+  textAccent: string;
+  primary: string;
+  primaryText: string;
+  border: string;
+  success: string;
+  warning: string;
+  danger: string;
+  placeholder: string;
+  /** Floating tab bar surface (slightly see-through). */
+  barBackground: string;
+  /** Outlined buttons: a hint of surface so the field behind doesn't cut through the label. */
+  glass: string;
+  /** Veil laid over the cards further back in the swipe stack. */
+  layerShade: string;
+}
 
-/** Gradient stops for the primary CTA / hero surfaces, Revolut-style. */
-export const PrimaryGradient = ['#6C5CE7', '#FF4D8D'] as const;
+/**
+ * Two schemes, same structure: neutral surfaces and text, one accent. The
+ * animated field behind the app carries the colour (see field-variants.ts).
+ */
+const dark: Palette = {
+  text: '#F5F5F7',
+  background: '#07070B',
+  backgroundElement: '#14141A',
+  backgroundSelected: '#1D1D26',
+  textSecondary: '#8D8D9B',
+  textAccent: '#9D8FFF',
+  primary: '#6A5AF9',
+  primaryText: '#FFFFFF',
+  border: '#24242E',
+  success: '#3DDC97',
+  warning: '#FFC857',
+  danger: '#FF5470',
+  placeholder: '#85859A',
+  barBackground: 'rgba(20,20,26,0.94)',
+  glass: 'rgba(20,20,26,0.6)',
+  layerShade: '#07070B',
+};
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+const light: Palette = {
+  text: '#0E0E14',
+  background: '#F4F4F8',
+  backgroundElement: '#FFFFFF',
+  backgroundSelected: '#E9E9F1',
+  textSecondary: '#5E5E6D',
+  textAccent: '#5445E0',
+  primary: '#6A5AF9',
+  primaryText: '#FFFFFF',
+  border: '#DADAE5',
+  success: '#12905C',
+  warning: '#B97A00',
+  danger: '#BF2742',
+  placeholder: '#6E6E7D',
+  barBackground: 'rgba(255,255,255,0.94)',
+  glass: 'rgba(255,255,255,0.7)',
+  layerShade: '#C8C8D6',
+};
+
+export const Colors = { light, dark } as const;
+
+export type ColorScheme = keyof typeof Colors;
+
+/** Gradient stops for the brand mark (same in both schemes). */
+export const PrimaryGradient = ['#4F7BFF', '#8A5CFF'] as const;
+
+export type ThemeColor = keyof Palette;
 
 export const Fonts = Platform.select({
   ios: {
@@ -64,6 +107,22 @@ export const Fonts = Platform.select({
   },
 });
 
+/** Display + body families, loaded in the root layout (see src/app/_layout.tsx). */
+export const FontFamily = {
+  display: 'BricolageGrotesque_800ExtraBold',
+  displaySemi: 'BricolageGrotesque_600SemiBold',
+  body: 'Inter_500Medium',
+  bodySemi: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
+} as const;
+
+/** Corner radii: cards, pills (fully round) and small chips. */
+export const Radius = {
+  chip: 12,
+  card: 24,
+  pill: 999,
+} as const;
+
 export const Spacing = {
   half: 2,
   one: 4,
@@ -74,5 +133,6 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/** Height the floating tab bar occupies above the bottom safe area. */
+export const BottomTabInset = 96;
 export const MaxContentWidth = 800;

@@ -1,21 +1,25 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 
+import { GroupedCard } from '@/components/grouped-card';
 import { ListRow } from '@/components/list-row';
+import { Screen } from '@/components/screen';
+import { SectionLabel } from '@/components/section-label';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-function InfoRow({ icon, title, body }: { icon: string; title: string; body: string }) {
+function InfoRow({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }) {
   const theme = useTheme();
   return (
-    <View style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText style={styles.rowIcon}>{icon}</ThemedText>
-      <View style={styles.rowText}>
-        <ThemedText type="smallBold">{title}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
+    <View style={styles.info}>
+      <View style={[styles.infoIcon, { backgroundColor: theme.backgroundSelected }]}>
+        <Ionicons name={icon} size={20} color={theme.text} />
+      </View>
+      <View style={styles.infoText}>
+        <ThemedText style={styles.infoTitle}>{title}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.infoBody}>
           {body}
         </ThemedText>
       </View>
@@ -25,74 +29,42 @@ function InfoRow({ icon, title, body }: { icon: string; title: string; body: str
 
 export default function PrivacySettingsScreen() {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <ThemedText type="subtitle" style={styles.heading}>
-            Datenschutz & Konto
-          </ThemedText>
+    <Screen title="Datenschutz & Konto">
+      <GroupedCard>
+        <InfoRow
+          icon="people-outline"
+          title="Wer deine Antworten sieht"
+          body="Nur deine bestätigten Freunde - damit sie raten und ihre Auflösung sehen können. Niemand sonst, auch nicht über die Datenbank."
+        />
+        <InfoRow
+          icon="lock-closed-outline"
+          title="Deine Zugangsdaten"
+          body="E-Mail und Passwort werden von Supabase Auth verwaltet und niemals mit anderen Nutzer:innen geteilt."
+        />
+      </GroupedCard>
 
-          <InfoRow
-            icon="👥"
-            title="Wer deine Antworten sieht"
-            body="Nur deine bestätigten Freunde - damit sie raten und ihre Auflösung sehen können. Niemand sonst, auch nicht über die Datenbank."
+      <View>
+        <SectionLabel>Mehr</SectionLabel>
+        <GroupedCard>
+          <ListRow iconName="document-text-outline" title="Datenschutzerklärung" onPress={() => router.push('/privacy')} />
+          <ListRow iconName="ban-outline" title="Blockierte Personen" onPress={() => router.push('/settings/blocked')} />
+          <ListRow
+            iconName="trash-outline"
+            danger
+            title="Konto löschen"
+            subtitle="Konto und alle Daten endgültig entfernen"
+            onPress={() => router.push('/settings/delete-account')}
           />
-          <InfoRow
-            icon="🔒"
-            title="Deine Zugangsdaten"
-            body="E-Mail und Passwort werden von Supabase Auth verwaltet und niemals mit anderen Nutzer:innen geteilt."
-          />
-
-          <View style={styles.links}>
-            <ListRow icon="📄" title="Datenschutzerklärung" onPress={() => router.push('/privacy')} />
-            <ListRow icon="🚫" title="Blockierte Personen" onPress={() => router.push('/settings/blocked')} />
-            <ListRow
-              icon="🗑️"
-              title="Konto löschen"
-              subtitle="Konto und alle Daten endgültig entfernen"
-              onPress={() => router.push('/settings/delete-account')}
-            />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+        </GroupedCard>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  scroll: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.two,
-  },
-  heading: {
-    marginBottom: Spacing.two,
-  },
-  links: {
-    marginTop: Spacing.three,
-    gap: Spacing.two,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  rowIcon: {
-    fontSize: 22,
-  },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
+  info: { flexDirection: 'row', gap: Spacing.three, padding: Spacing.three, alignItems: 'flex-start' },
+  infoIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  infoText: { flex: 1, gap: 3 },
+  infoTitle: { fontFamily: FontFamily.bodySemi, fontSize: 16, lineHeight: 22 },
+  infoBody: { lineHeight: 20 },
 });
