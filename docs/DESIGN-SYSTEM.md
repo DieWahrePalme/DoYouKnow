@@ -71,6 +71,17 @@ hairline dividers), `ListRow`, `Avatar`, `SmallButton`, `IconButton`, `EmptyStat
 - `SwipeDeck` progress: 5 segment bars instead of a caption.
 - `GuessHeader`: story-style avatar ring, "Du rätst für X", topic as hero title.
 
+## Platform note
+
+The product is an iPhone app. The web build only exists so the UI can be checked in a browser
+(Playwright screenshots); web polish and the Pages deployment are not a goal.
+
+## Tabs
+
+The four tabs are real `Tabs` (expo-router): screens mount on first visit and then stay mounted
+(`freezeOnBlur`), switching is a fade, and Profil shows a skeleton grid for its first frame
+before the virtualized tiles mount.
+
 ## Previewing without a login
 
 Dev only: `/design-preview/{guess,home,match,favorites,profile}` (redirect away outside `__DEV__`) render
@@ -83,4 +94,4 @@ the screens with fake data. Screenshots for review: Playwright at 393×852 again
 - [x] Home (top bar, hero card, grouped friends), Profil (one-line header), Match + Favoriten (restyled)
 - [x] Auth (welcome, intro, login, register, forgot password), guess/overview/result screens
 - [x] Friends, add-friend, friend-requests, settings (+ all subpages), safety, match detail, privacy policy
-- [ ] Open: on-device check in Expo Go, a11y pass (VoiceOver/Dynamic Type), Pages export check
+- [ ] Open: on-device check in Expo Go, a11y pass (VoiceOver/Dynamic Type)

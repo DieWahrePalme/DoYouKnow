@@ -18,10 +18,10 @@ const QUESTIONS: Question[] = [
 ];
 
 const TABS = [
-  { href: '/' as const, isActive: (p: string) => p === '/', icon: 'flame' as const, label: 'Heute' },
-  { href: '/match' as const, isActive: () => false, icon: 'git-compare' as const, label: 'Match' },
-  { href: '/favorites' as const, isActive: () => false, icon: 'star' as const, label: 'Favoriten' },
-  { href: '/profile' as const, isActive: () => false, icon: 'person' as const, label: 'Profil' },
+  { key: 'home', icon: 'flame' as const, label: 'Heute' },
+  { key: 'match', icon: 'git-compare' as const, label: 'Match' },
+  { key: 'favorites', icon: 'star' as const, label: 'Favoriten' },
+  { key: 'profile', icon: 'person' as const, label: 'Profil' },
 ];
 
 /** Dev-only: renders the guess screen with fake data so the design can be checked without a login. */
@@ -37,7 +37,7 @@ export default function DesignPreview() {
           header={<GuessHeader avatarEmoji="🦊" kicker="Du rätst für Tom" topicName="Sport" />}
         />
       </SafeAreaView>
-      <FloatingTabBar tabs={TABS} pathname="/" onSelect={() => {}} />
+      <FloatingTabBar tabs={TABS} activeKey="home" onSelect={() => {}} />
     </ThemedView>
   );
 }

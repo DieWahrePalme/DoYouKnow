@@ -1,31 +1,25 @@
-import { Href, Slot, router, usePathname } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { FloatingTabBar, TabItem } from '@/components/floating-tab-bar';
+import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
-import { FloatingTabBar, IconName } from '@/components/floating-tab-bar';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, FontFamily, Spacing } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
 import { useFriendsStore } from '@/state/friendsStore';
 
-interface TabDef {
-  href: Href;
-  isActive: (pathname: string) => boolean;
-  icon: IconName;
-  label: string;
-}
-
-const TABS: TabDef[] = [
-  { href: '/', isActive: (p) => p === '/', icon: 'flame', label: 'Heute' },
-  { href: '/match', isActive: (p) => p === '/match', icon: 'git-compare', label: 'Match' },
-  { href: '/favorites', isActive: (p) => p === '/favorites', icon: 'star', label: 'Favoriten' },
-  { href: '/profile', isActive: (p) => p === '/profile', icon: 'person', label: 'Profil' },
+/** Route name (file in this folder) -> tab bar entry. Order here is the order in the bar. */
+const TABS: TabItem[] = [
+  { key: 'index', icon: 'flame', label: 'Heute' },
+  { key: 'match', icon: 'git-compare', label: 'Match' },
+  { key: 'favorites', icon: 'star', label: 'Favoriten' },
+  { key: 'profile', icon: 'person', label: 'Profil' },
 ];
 
 export default function TabsLayout() {
   const theme = Colors.dark;
-  const pathname = usePathname();
   const authProfile = useAuthStore((state) => state.profile);
   const profileError = useAuthStore((state) => state.profileError);
   const retryProfileLoad = useAuthStore((state) => state.retryProfileLoad);
@@ -42,42 +36,52 @@ export default function TabsLayout() {
 
   if (profileError) {
     return (
-      <View style={[styles.container, styles.centered, styles.errorPadding, { backgroundColor: theme.background }]}>
-        <ThemedText type="subtitle" style={styles.centerText}>
-          Profil nicht gefunden
-        </ThemedText>
+      <View style={[styles.container, styles.centered, styles.errorPadding]}>
+        <ThemedText style={styles.errorTitle}>Profil nicht gefunden</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
           {profileError}
         </ThemedText>
-        <Pressable onPress={() => retryProfileLoad()} style={[styles.retryButton, { backgroundColor: theme.primary }]}>
-          <ThemedText type="smallBold" style={styles.retryButtonText}>
-            Erneut versuchen
-          </ThemedText>
-        </Pressable>
-        <Pressable onPress={() => signOut()}>
-          <ThemedText type="small" style={{ color: theme.danger }}>
-            Abmelden
-          </ThemedText>
-        </Pressable>
+        <View style={styles.fullWidth}>
+          <PrimaryButton label="Erneut versuchen" onPress={() => retryProfileLoad()} />
+        </View>
+        <ThemedText type="smallBold" themeColor="danger" onPress={() => signOut()} style={styles.signOut}>
+          Abmelden
+        </ThemedText>
       </View>
     );
   }
 
   if (!activeUserId) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, styles.centered]}>
         <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
   }
 
+  // Real tabs: each screen is mounted once (on first visit) and then kept, so
+  // switching back is instant instead of rebuilding the screen. Hidden tabs are
+  // frozen so they don't re-render in the background.
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Slot />
-      </View>
-      <FloatingTabBar tabs={TABS} pathname={pathname} onSelect={(href) => router.replace(href)} />
-    </View>
+    <Tabs
+      initialRouteName="index"
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+        freezeOnBlur: true,
+        sceneStyle: { backgroundColor: 'transparent' },
+      }}
+      tabBar={({ state, navigation }) => (
+        <FloatingTabBar
+          tabs={TABS}
+          activeKey={state.routes[state.index]?.name ?? 'index'}
+          onSelect={(key) => navigation.navigate(key)}
+        />
+      )}>
+      {TABS.map((tab) => (
+        <Tabs.Screen key={tab.key} name={tab.key} />
+      ))}
+    </Tabs>
   );
 }
 
@@ -93,18 +97,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     gap: Spacing.three,
   },
+  errorTitle: {
+    fontFamily: FontFamily.display,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.8,
+    textAlign: 'center',
+    color: '#F5F5F7',
+  },
   centerText: {
     textAlign: 'center',
   },
-  retryButton: {
+  fullWidth: {
+    alignSelf: 'stretch',
+  },
+  signOut: {
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-  },
-  content: {
-    flex: 1,
   },
 });

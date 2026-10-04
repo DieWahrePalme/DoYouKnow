@@ -12,10 +12,10 @@ import { useFriendsStore } from '@/state/friendsStore';
 import { guessDayKey } from '@/utils/streak';
 
 const TABS = [
-  { href: '/' as const, label: 'Heute', icon: 'flame' as const, screen: 'home' },
-  { href: '/match' as const, label: 'Match', icon: 'git-compare' as const, screen: 'match' },
-  { href: '/favorites' as const, label: 'Favoriten', icon: 'star' as const, screen: 'favorites' },
-  { href: '/profile' as const, label: 'Profil', icon: 'person' as const, screen: 'profile' },
+  { key: 'home', label: 'Heute', icon: 'flame' as const },
+  { key: 'match', label: 'Match', icon: 'git-compare' as const },
+  { key: 'favorites', label: 'Favoriten', icon: 'star' as const },
+  { key: 'profile', label: 'Profil', icon: 'person' as const },
 ];
 
 const SCREENS = { home: HomeScreen, match: MatchScreen, favorites: FavoritesScreen, profile: ProfileScreen };
@@ -115,11 +115,7 @@ export function DesignPreviewScreen({ screen }: { screen: keyof typeof SCREENS }
   return (
     <View style={{ flex: 1 }}>
       <Screen />
-      <FloatingTabBar
-        tabs={TABS.map((t) => ({ ...t, isActive: () => t.screen === screen }))}
-        pathname=""
-        onSelect={() => {}}
-      />
+      <FloatingTabBar tabs={TABS} activeKey={screen} onSelect={() => {}} />
     </View>
   );
 }

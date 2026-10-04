@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,21 +9,23 @@ import { useTheme } from '@/hooks/use-theme';
 
 export type IconName = keyof typeof Ionicons.glyphMap;
 
-interface TabItem {
-  href: Href;
-  isActive: (pathname: string) => boolean;
+export interface TabItem {
+  key: string;
   icon: IconName;
   label: string;
 }
 
 interface FloatingTabBarProps {
   tabs: TabItem[];
-  pathname: string;
-  onSelect: (href: Href) => void;
+  activeKey: string;
+  onSelect: (key: string) => void;
 }
 
+/** The active tab grows into a filled pill with its label; the others reflow with a spring. */
+const REFLOW = LinearTransition.springify().damping(20).stiffness(220);
+
 /** Pill-shaped bar floating above the content; the active tab is a filled pill with its label. */
-export function FloatingTabBar({ tabs, pathname, onSelect }: FloatingTabBarProps) {
+export function FloatingTabBar({ tabs, activeKey, onSelect }: FloatingTabBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -31,21 +33,25 @@ export function FloatingTabBar({ tabs, pathname, onSelect }: FloatingTabBarProps
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, Spacing.three) }]} pointerEvents="box-none">
       <View style={[styles.bar, { borderColor: theme.border }]}>
         {tabs.map((tab) => {
-          const active = tab.isActive(pathname);
+          const active = tab.key === activeKey;
           return (
             <Pressable
-              key={tab.label}
+              key={tab.key}
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
-              onPress={() => onSelect(tab.href)}
-              style={[styles.tab, active && { backgroundColor: theme.backgroundSelected }]}>
-              <Ionicons name={tab.icon} size={20} color={active ? theme.text : theme.textSecondary} />
-              {active ? (
-                <ThemedText style={styles.label}>
-                  {tab.label}
-                </ThemedText>
-              ) : null}
+              onPress={() => onSelect(tab.key)}
+              hitSlop={4}>
+              <Animated.View
+                layout={REFLOW}
+                style={[styles.tab, active && { backgroundColor: theme.backgroundSelected }]}>
+                <Ionicons name={tab.icon} size={20} color={active ? theme.text : theme.textSecondary} />
+                {active ? (
+                  <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(100)}>
+                    <ThemedText style={styles.label}>{tab.label}</ThemedText>
+                  </Animated.View>
+                ) : null}
+              </Animated.View>
             </Pressable>
           );
         })}

@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { CATEGORIES } from '@/data/mockData';
+import { useAfterInteractions } from '@/hooks/use-after-interactions';
 import { useEffectiveNow } from '@/hooks/use-effective-now';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -112,6 +114,20 @@ function GroupTile({ group, isToday }: { group: QuestionGroup; isToday: boolean 
   );
 }
 
+const GRID_COLUMNS = 3;
+const SKELETON_TILES = 12;
+
+/** Placeholder tiles shown for the first frame(s) while the real grid mounts. */
+function SkeletonGrid() {
+  return (
+    <View style={styles.skeletonGrid}>
+      {Array.from({ length: SKELETON_TILES }, (_, i) => (
+        <Skeleton key={i} style={styles.skeletonTile} />
+      ))}
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const theme = useTheme();
   const activeUserId = useAppStore((state) => state.activeUserId);
@@ -126,56 +142,72 @@ export default function ProfileScreen() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const visibleGroups = activeCategory ? groups.filter((g) => g.category === activeCategory) : groups;
 
+  // First frame shows the header and a skeleton grid; the real tiles mount
+  // once the tab transition is done, so opening Profil never stalls.
+  const ready = useAfterInteractions();
+
+  const header = (
+    <>
+      <View style={styles.headerRow}>
+        <View style={[styles.avatar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <ThemedText style={styles.avatarEmoji}>{profile.avatarEmoji}</ThemedText>
+        </View>
+
+        <View style={styles.stats}>
+          <StatColumn value={friendCount} label="Freunde" onPress={() => router.push('/friends')} />
+          <StatColumn value={answeredCount} label="Beantwortet" />
+          <StatColumn value={collectedCount} label="Gesammelt" />
+        </View>
+
+        <Pressable
+          onPress={() => router.push('/settings')}
+          accessibilityRole="button"
+          accessibilityLabel="Einstellungen"
+          style={[styles.menuButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <Ionicons name="menu" size={22} color={theme.text} />
+        </Pressable>
+      </View>
+
+      <ThemedText style={styles.username} numberOfLines={1}>
+        {profile.name}
+      </ThemedText>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipRow}
+        contentContainerStyle={styles.chipRowContent}>
+        <CategoryChip label="Alle" active={activeCategory === null} onPress={() => setActiveCategory(null)} />
+        {CATEGORIES.map((category) => (
+          <CategoryChip
+            key={category.id}
+            label={category.name}
+            active={activeCategory === category.id}
+            onPress={() => setActiveCategory(category.id)}
+          />
+        ))}
+      </ScrollView>
+      <View style={styles.gridGap} />
+    </>
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
-          <View style={styles.headerRow}>
-            <View style={[styles.avatar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-              <ThemedText style={styles.avatarEmoji}>{profile.avatarEmoji}</ThemedText>
-            </View>
-
-            <View style={styles.stats}>
-              <StatColumn value={friendCount} label="Freunde" onPress={() => router.push('/friends')} />
-              <StatColumn value={answeredCount} label="Beantwortet" />
-              <StatColumn value={collectedCount} label="Gesammelt" />
-            </View>
-
-            <Pressable
-              onPress={() => router.push('/settings')}
-              accessibilityRole="button"
-              accessibilityLabel="Einstellungen"
-              style={[styles.menuButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-              <Ionicons name="menu" size={22} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <ThemedText style={styles.username} numberOfLines={1}>
-            {profile.name}
-          </ThemedText>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipRow}
-            contentContainerStyle={styles.chipRowContent}>
-            <CategoryChip label="Alle" active={activeCategory === null} onPress={() => setActiveCategory(null)} />
-            {CATEGORIES.map((category) => (
-              <CategoryChip
-                key={category.id}
-                label={category.name}
-                active={activeCategory === category.id}
-                onPress={() => setActiveCategory(category.id)}
-              />
-            ))}
-          </ScrollView>
-
-          <View style={styles.grid}>
-            {visibleGroups.map((group) => (
-              <GroupTile key={group.id} group={group} isToday={group.id === todaysGroupId} />
-            ))}
-          </View>
-        </ScrollView>
+        <FlatList
+          style={styles.scrollView}
+          contentContainerStyle={styles.scroll}
+          data={ready ? visibleGroups : []}
+          keyExtractor={(group) => group.id}
+          numColumns={GRID_COLUMNS}
+          columnWrapperStyle={styles.gridRow}
+          initialNumToRender={12}
+          windowSize={7}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={header}
+          ListEmptyComponent={ready ? null : <SkeletonGrid />}
+          renderItem={({ item }) => <GroupTile group={item} isToday={item.id === todaysGroupId} />}
+        />
       </SafeAreaView>
     </ThemedView>
   );
@@ -266,11 +298,22 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
-  grid: {
+  gridGap: {
+    height: Spacing.three,
+  },
+  gridRow: {
+    gap: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  skeletonGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
-    marginTop: Spacing.three,
+  },
+  skeletonTile: {
+    width: '31.5%',
+    aspectRatio: 1,
+    borderRadius: 20,
   },
   tile: {
     width: '31.5%',
