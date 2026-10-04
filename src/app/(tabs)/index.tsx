@@ -340,7 +340,6 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 40,
     letterSpacing: -1,
-    color: '#F5F5F7',
   },
   heroAction: {
     flexDirection: 'row',

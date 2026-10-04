@@ -22,7 +22,7 @@ export function SecondaryButton({ label, onPress, disabled }: SecondaryButtonPro
       accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.button,
-        { borderColor: theme.border, backgroundColor: pressed ? theme.backgroundSelected : 'rgba(20,20,26,0.6)' },
+        { borderColor: theme.border, backgroundColor: pressed ? theme.backgroundSelected : theme.glass },
         disabled && styles.disabled,
       ]}>
       <ThemedText style={styles.label}>{label}</ThemedText>

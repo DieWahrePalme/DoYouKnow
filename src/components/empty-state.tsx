@@ -57,7 +57,6 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     letterSpacing: -0.5,
     textAlign: 'center',
-    color: '#F5F5F7',
   },
   body: {
     textAlign: 'center',

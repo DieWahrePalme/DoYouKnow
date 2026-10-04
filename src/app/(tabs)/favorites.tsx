@@ -48,6 +48,7 @@ function FavoriteRow({ item }: { item: FavoriteItem }) {
 }
 
 export default function FavoritesScreen() {
+  const theme = useTheme();
   const favorites = useAppStore((state) => state.favorites);
   const activeUserId = useAppStore((state) => state.activeUserId);
   const sorted = favorites
@@ -75,7 +76,7 @@ export default function FavoritesScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="heart-outline" size={40} color="#8D8D9B" />
+              <Ionicons name="heart-outline" size={40} color={theme.textSecondary} />
               <ThemedText type="default" themeColor="textSecondary" style={styles.emptyText}>
                 Noch nichts geliked. Öffne „Match“ bei einem Freund und markiere gemeinsame Antworten mit dem Herz.
               </ThemedText>

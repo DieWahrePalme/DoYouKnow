@@ -283,7 +283,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
     letterSpacing: -0.5,
-    color: '#F5F5F7',
   },
   statLabel: {
     fontSize: 12,
@@ -302,7 +301,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 34,
     letterSpacing: -0.8,
-    color: '#F5F5F7',
     marginTop: Spacing.three,
   },
   chipRow: {

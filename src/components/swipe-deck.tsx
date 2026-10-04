@@ -112,7 +112,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.display,
     fontSize: 20,
     lineHeight: 24,
-    color: '#F5F5F7',
   },
   counterLabel: {
     fontSize: 13,

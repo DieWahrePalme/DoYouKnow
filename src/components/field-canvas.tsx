@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native';
 import { Easing, useDerivedValue, useFrameCallback, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { FIELD_VARIANTS, FieldVariantName, variantToArray } from '@/constants/field-variants';
+import { ColorScheme } from '@/constants/theme';
 
 /** Cross-fade between two looks when the tab changes. */
 const VARIANT_FADE_MS = 700;
@@ -25,6 +26,8 @@ uniform float levelsU;
 uniform float glowU;
 uniform float widthU;
 uniform float intensityU;
+uniform float washU;
+uniform float3 baseU;
 
 float hash(float2 p) {
   p = fract(p * float2(123.34, 456.21));
@@ -46,7 +49,7 @@ float noise(float2 p) {
 float height(float2 p) {
   float v = 0.0;
   float amp = 0.5;
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 2; i++) {
     v += amp * noise(p);
     p = p * 2.03 + float2(17.1, 9.2);
     amp *= 0.5;
@@ -56,7 +59,7 @@ float height(float2 p) {
 
 half4 main(float2 xy) {
   float2 uv = xy / size.y;
-  float2 p = uv * 2.4 + float2(t * 0.020, -t * 0.014);
+  float2 p = uv * 1.7 + float2(t * 0.020, -t * 0.014);
   float h = height(p) + 0.15 * sin(uv.x * 2.4 + t * 0.05);
 
   // Screen-space distance to the nearest contour: divide by the height
@@ -75,8 +78,11 @@ half4 main(float2 xy) {
   float fade = 1.0 - smoothstep(0.30, 1.0, xy.y / size.y);
   fade = 0.18 + 0.82 * fade;
 
-  float3 base = float3(0.027, 0.027, 0.043);
-  float3 color = base + tint * (line + glow * glowU) * fade * intensityU;
+  // Lines on the base colour, plus a soft colour glow near the top.
+  float lineAlpha = clamp((line + glow * glowU) * fade * intensityU, 0.0, 1.0);
+  float washAlpha = washU * (1.0 - smoothstep(0.0, 0.75, xy.y / size.y));
+  float3 color = mix(baseU, tint, washAlpha);
+  color = mix(color, tint, lineAlpha);
   return half4(half3(color), 1.0);
 }
 `)!;
@@ -87,11 +93,12 @@ interface FieldCanvasProps {
   /** True stops the clock (screen unfocused, app backgrounded, or Reduce Motion). */
   paused: boolean;
   variant: FieldVariantName;
+  scheme: ColorScheme;
 }
 
-export default function FieldCanvas({ width, height, paused, variant }: FieldCanvasProps) {
+export default function FieldCanvas({ width, height, paused, variant, scheme }: FieldCanvasProps) {
   const time = useSharedValue(0);
-  const initial = variantToArray(FIELD_VARIANTS[variant]);
+  const initial = variantToArray(FIELD_VARIANTS[variant], scheme);
   const from = useSharedValue<number[]>(initial);
   const to = useSharedValue<number[]>(initial);
   const progress = useSharedValue(1);
@@ -100,11 +107,11 @@ export default function FieldCanvas({ width, height, paused, variant }: FieldCan
     // Start the fade from wherever the previous fade currently is.
     const current = from.value.map((v, i) => v + (to.value[i] - v) * progress.value);
     from.value = current;
-    to.value = variantToArray(FIELD_VARIANTS[variant]);
+    to.value = variantToArray(FIELD_VARIANTS[variant], scheme);
     progress.value = 0;
     progress.value = withTiming(1, { duration: VARIANT_FADE_MS, easing: Easing.inOut(Easing.cubic) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant]);
+  }, [variant, scheme]);
 
   useFrameCallback((frame) => {
     const stepS = Math.min((frame.timeSincePreviousFrame ?? 0) / 1000, MAX_FRAME_STEP_S);
@@ -123,6 +130,8 @@ export default function FieldCanvas({ width, height, paused, variant }: FieldCan
       glowU: v[7],
       widthU: v[8],
       intensityU: v[9],
+      washU: v[10],
+      baseU: [v[11], v[12], v[13]],
     };
   });
 

@@ -243,7 +243,7 @@ export default function RegisterScreen() {
               <Checkbox checked={acceptedPrivacy} onToggle={() => setAcceptedPrivacy(!acceptedPrivacy)}>
                 <ThemedText type="default">
                   Ich habe die{' '}
-                  <ThemedText type="default" style={{ color: '#9D8FFF' }} onPress={() => router.push('/privacy')}>
+                  <ThemedText type="default" style={{ color: theme.textAccent }} onPress={() => router.push('/privacy')}>
                     Datenschutzerklärung
                   </ThemedText>{' '}
                   gelesen und bin einverstanden.
@@ -341,7 +341,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 36,
     letterSpacing: -1,
-    color: '#F5F5F7',
   },
   mailRow: {
     flexDirection: 'row',

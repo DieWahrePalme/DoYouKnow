@@ -91,6 +91,6 @@ export default function MatchCategoriesScreen() {
 
 const styles = StyleSheet.create({
   person: { alignItems: 'center', gap: Spacing.two },
-  name: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.8, color: '#F5F5F7' },
+  name: { fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.8 },
   percent: { fontFamily: FontFamily.display, fontSize: 20, lineHeight: 24 },
 });

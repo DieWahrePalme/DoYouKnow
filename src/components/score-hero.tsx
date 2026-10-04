@@ -37,7 +37,6 @@ const styles = StyleSheet.create({
     fontSize: 72,
     lineHeight: 76,
     letterSpacing: -3,
-    color: '#F5F5F7',
   },
   track: { alignSelf: 'stretch', height: 6, borderRadius: Radius.pill, overflow: 'hidden', marginHorizontal: Spacing.four },
   fill: { height: 6, borderRadius: Radius.pill },

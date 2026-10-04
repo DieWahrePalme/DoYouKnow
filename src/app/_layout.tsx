@@ -5,13 +5,16 @@ import {
 } from '@expo-google-fonts/bricolage-grotesque';
 import { Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { useFonts } from 'expo-font';
-import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { FieldBackground } from '@/components/field-background';
-import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
+import { useAppearanceStore } from '@/state/appearanceStore';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
@@ -41,14 +44,20 @@ const SIGNED_IN_SCREENS = [
   'settings/username',
 ] as const;
 
-/** Navigation theme with a see-through background so the animated field shows behind every screen. */
-const NAV_THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: 'transparent' } };
+/** Navigation themes with a see-through background so the animated field shows behind every screen. */
+const NAV_THEMES = {
+  dark: { ...DarkTheme, colors: { ...DarkTheme.colors, background: 'transparent' } },
+  light: { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: 'transparent' } },
+};
 
 /** How often a signed-in client checks whether Berlin midnight has passed. */
 const DAY_ROLLOVER_CHECK_MS = 15 * 1000;
 
 export default function RootLayout() {
-  const theme = Colors.dark;
+  const theme = useTheme();
+  const scheme = useColorScheme();
+  const loadAppearance = useAppearanceStore((state) => state.load);
+  const appearanceLoaded = useAppearanceStore((state) => state.loaded);
   const [fontsLoaded] = useFonts({
     BricolageGrotesque_600SemiBold,
     BricolageGrotesque_800ExtraBold,
@@ -69,7 +78,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     init();
-  }, [init]);
+    void loadAppearance();
+  }, [init, loadAppearance]);
 
   // On native, confirmation/reset emails open the app via doyouknow:// (or
   // exp:// in Expo Go) with the session tokens in the URL - covers both a
@@ -103,7 +113,7 @@ export default function RootLayout() {
     if (status === 'signedIn' && activeUserId) recordTodaysCard();
   }, [status, activeUserId, today, recordTodaysCard]);
 
-  if (status === 'loading' || !fontsLoaded) {
+  if (status === 'loading' || !fontsLoaded || !appearanceLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
         <ActivityIndicator color={theme.primary} size="large" />
@@ -114,7 +124,8 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
       <FieldBackground />
-      <ThemeProvider value={NAV_THEME}>
+      <ThemeProvider value={NAV_THEMES[scheme]}>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         <Stack
           screenOptions={{
             title: '',

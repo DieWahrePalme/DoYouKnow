@@ -74,7 +74,7 @@ export function FriendGuessesAboutMe({ questions, myAnswers, friendGuesses }: Fr
                   style={styles.row}
                   accessible
                   accessibilityLabel={`${OUTCOME_SPOKEN[outcome]}. ${question.text}. ${friend.name}: ${guess[question.id] ? ANSWER_LABELS[guess[question.id]] : 'keine Antwort'}, du: ${ANSWER_LABELS[myAnswers[question.id]]}`}>
-                  <Ionicons name={icon.name} size={20} color={icon.color} />
+                  <Ionicons name={icon.name} size={20} color={theme[icon.color]} />
                   <View style={styles.rowText}>
                     <ThemedText type="small" style={styles.rowQuestion}>
                       {question.text}

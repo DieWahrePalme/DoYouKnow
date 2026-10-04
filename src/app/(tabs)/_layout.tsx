@@ -5,7 +5,8 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { FloatingTabBar, TabItem } from '@/components/floating-tab-bar';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, FontFamily, Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
 import { useFriendsStore } from '@/state/friendsStore';
@@ -19,7 +20,7 @@ const TABS: TabItem[] = [
 ];
 
 export default function TabsLayout() {
-  const theme = Colors.dark;
+  const theme = useTheme();
   const authProfile = useAuthStore((state) => state.profile);
   const profileError = useAuthStore((state) => state.profileError);
   const retryProfileLoad = useAuthStore((state) => state.retryProfileLoad);
@@ -104,7 +105,6 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     letterSpacing: -0.8,
     textAlign: 'center',
-    color: '#F5F5F7',
   },
   centerText: {
     textAlign: 'center',

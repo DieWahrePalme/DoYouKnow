@@ -10,7 +10,7 @@ import { GroupedListItem } from '@/components/grouped-list-item';
 import { SmallButton } from '@/components/small-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { PLACEHOLDER_COLOR, FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { FontFamily, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useFriendsStore } from '@/state/friendsStore';
 import { UserProfile } from '@/types';
@@ -79,7 +79,7 @@ export default function AddFriendScreen() {
                   autoCorrect={false}
                   autoFocus
                   placeholder="z. B. momo_23"
-                  placeholderTextColor={PLACEHOLDER_COLOR}
+                  placeholderTextColor={theme.placeholder}
                   selectionColor={theme.primary}
                   maxFontSizeMultiplier={2}
                   accessibilityLabel="Benutzername suchen"
