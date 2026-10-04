@@ -49,7 +49,7 @@ export default function FriendGroupGuessScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <GuessHeader avatarEmoji={friend.avatarEmoji} friendName={friend.name} topicName={group.name} />
+          <GuessHeader avatarEmoji={friend.avatarEmoji} kicker={`Du rätst für ${friend.name}`} topicName={group.name} />
         </View>
 
         {!guess ? (

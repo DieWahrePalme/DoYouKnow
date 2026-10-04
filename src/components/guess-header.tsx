@@ -7,12 +7,12 @@ import { useTheme } from '@/hooks/use-theme';
 
 interface GuessHeaderProps {
   avatarEmoji: string;
-  friendName: string;
+  kicker: string;
   topicName: string;
 }
 
 /** Story-style avatar ring, "who you're guessing" line and the topic as a bold title. */
-export function GuessHeader({ avatarEmoji, friendName, topicName }: GuessHeaderProps) {
+export function GuessHeader({ avatarEmoji, kicker, topicName }: GuessHeaderProps) {
   const theme = useTheme();
 
   return (
@@ -23,7 +23,7 @@ export function GuessHeader({ avatarEmoji, friendName, topicName }: GuessHeaderP
         </View>
       </LinearGradient>
       <ThemedText type="small" themeColor="textSecondary" style={styles.kicker}>
-        Du rätst für {friendName}
+        {kicker}
       </ThemedText>
       <ThemedText style={styles.topic} numberOfLines={2}>
         {topicName}

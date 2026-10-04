@@ -32,7 +32,7 @@ export default function DesignPreview() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <GuessHeader avatarEmoji="🦊" friendName="Tom" topicName="Sport" />
+          <GuessHeader avatarEmoji="🦊" kicker="Du rätst für Tom" topicName="Sport" />
         </View>
         <SwipeDeck questions={QUESTIONS} onComplete={() => {}} />
       </SafeAreaView>

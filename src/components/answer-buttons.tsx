@@ -10,16 +10,16 @@ interface AnswerButtonsProps {
   onAnswer: (value: AnswerValue) => void;
 }
 
-const BUTTONS: { value: AnswerValue; label: string; icon: keyof typeof Ionicons.glyphMap; primary?: boolean }[] = [
+const BUTTONS: { value: AnswerValue; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'no', label: 'Nein', icon: 'close' },
   { value: 'leanNo', label: 'Eher nein', icon: 'arrow-down' },
   { value: 'leanYes', label: 'Eher ja', icon: 'arrow-up' },
-  { value: 'yes', label: 'Ja', icon: 'checkmark', primary: true },
+  { value: 'yes', label: 'Ja', icon: 'checkmark' },
 ];
 
 const BUTTON_SIZE = 60;
 
-/** Round icon buttons with the label underneath; "Ja" carries the accent. */
+/** Round icon buttons with the label underneath; all four answers look the same on purpose. */
 export function AnswerButtons({ onAnswer }: AnswerButtonsProps) {
   const theme = useTheme();
 
@@ -34,12 +34,13 @@ export function AnswerButtons({ onAnswer }: AnswerButtonsProps) {
             style={({ pressed }) => [
               styles.button,
               {
-                backgroundColor: button.primary ? theme.primary : theme.backgroundElement,
+                backgroundColor: theme.backgroundElement,
                 borderColor: theme.border,
                 opacity: pressed ? 0.7 : 1,
+                transform: [{ scale: pressed ? 0.94 : 1 }],
               },
             ]}>
-            <Ionicons name={button.icon} size={26} color={button.primary ? theme.primaryText : theme.text} />
+            <Ionicons name={button.icon} size={26} color={theme.text} />
           </Pressable>
           <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
             {button.label}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
@@ -30,7 +30,8 @@ export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
 
   // A fresh question always starts its card centered - the previous
   // question's exit motion must not leak into the next one.
-  useEffect(() => {
+  // Layout effect so the reset lands before the next card paints (no flash of the old offset).
+  useLayoutEffect(() => {
     translateX.value = 0;
     translateY.value = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps

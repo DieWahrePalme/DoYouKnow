@@ -1,8 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GuessHeader } from '@/components/guess-header';
 import { FriendGuess, FriendGuessesAboutMe } from '@/components/friend-guesses-about-me';
 import { HistoryTrail } from '@/components/history-trail';
 import { SwipeDeck } from '@/components/swipe-deck';
@@ -22,6 +23,7 @@ export default function MyGroupScreen() {
   const historyForGroup = useAppStore((state) => state.history[state.activeUserId]?.[groupId ?? '']);
   const submitSelfAnswers = useAppStore((state) => state.submitSelfAnswers);
   const users = useAppStore((state) => state.users);
+  const myAvatar = users[activeUserId]?.avatarEmoji ?? '🙂';
   const guesses = useAppStore((state) => state.guesses);
   const guessDays = useAppStore((state) => state.guessDays);
   const today = useAppStore((state) => state.today);
@@ -61,15 +63,12 @@ export default function MyGroupScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="subtitle" style={styles.heading}>
-          {group.icon} {group.name}
-        </ThemedText>
+        <View style={styles.heading}>
+          <GuessHeader avatarEmoji={myAvatar} kicker="Deine Antworten" topicName={group.name} />
+        </View>
 
         {showSwipeDeck ? (
           <>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.subheading}>
-              Beantworte ehrlich – das ist deine aktuelle Wahrheit für dieses Thema.
-            </ThemedText>
             <SwipeDeck questions={group.questions} onComplete={handleComplete} />
           </>
         ) : (
@@ -122,9 +121,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     marginTop: Spacing.three,
-  },
-  subheading: {
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.four,
   },
   summary: {
     gap: Spacing.three,
