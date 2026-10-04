@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { AnswerValue, Question } from '@/types';
 
@@ -177,39 +177,29 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.card, { backgroundColor: theme.backgroundElement }, cardStyle]}>
-        <Animated.View style={[styles.stamp, styles.stampRight, yesStampStyle]}>
-          <ThemedText type="title" style={styles.stampTextYes}>
-            JA
-          </ThemedText>
+      <Animated.View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, cardStyle]}>
+        <Animated.View style={[styles.stamp, styles.stampRight, styles.stampYes, yesStampStyle]}>
+          <ThemedText style={styles.stampText}>JA</ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampLeft, noStampStyle]}>
-          <ThemedText type="title" style={styles.stampTextNo}>
-            NEIN
-          </ThemedText>
+        <Animated.View style={[styles.stamp, styles.stampLeft, styles.stampNo, noStampStyle]}>
+          <ThemedText style={styles.stampText}>NEIN</ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampTop, leanYesStampStyle]}>
-          <ThemedText type="subtitle" style={styles.stampTextLeanYes}>
-            EHER JA
-          </ThemedText>
+        <Animated.View style={[styles.stamp, styles.stampTop, styles.stampYes, leanYesStampStyle]}>
+          <ThemedText style={styles.stampText}>EHER JA</ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.stampBottom, leanNoStampStyle]}>
-          <ThemedText type="subtitle" style={styles.stampTextLeanNo}>
-            EHER NEIN
-          </ThemedText>
+        <Animated.View style={[styles.stamp, styles.stampBottom, styles.stampNo, leanNoStampStyle]}>
+          <ThemedText style={styles.stampText}>EHER NEIN</ThemedText>
         </Animated.View>
-        <Animated.View style={[styles.neverStamp, neverStampStyle]} pointerEvents="none">
-          <ThemedText type="title" style={styles.stampTextNever}>
-            NIE
-          </ThemedText>
+        <Animated.View style={[styles.stamp, styles.stampCenter, styles.stampNever, neverStampStyle]} pointerEvents="none">
+          <ThemedText style={[styles.stampText, { color: '#FFFFFF' }]}>NIE</ThemedText>
         </Animated.View>
 
         <View style={styles.questionWrap}>
-          <ThemedText type="subtitle" style={styles.questionText}>
-            {question.text}
-          </ThemedText>
+          <ThemedText style={styles.questionText}>{question.text}</ThemedText>
+        </View>
+        <View style={[styles.hintPill, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-            Nie (2× tippen)
+            Nie · 2× tippen
           </ThemedText>
         </View>
       </Animated.View>
@@ -224,80 +214,60 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: Spacing.four,
+    borderRadius: Radius.card + 4,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.four,
     justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
   },
   questionWrap: {
     alignItems: 'center',
     gap: Spacing.two,
   },
   questionText: {
+    fontFamily: FontFamily.display,
+    fontSize: 32,
+    lineHeight: 37,
+    letterSpacing: -0.8,
     textAlign: 'center',
+    color: '#F5F5F7',
+  },
+  hintPill: {
+    position: 'absolute',
+    bottom: Spacing.four,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
   },
   hint: {
     textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 16,
   },
   stamp: {
     position: 'absolute',
-    borderWidth: 3,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.one,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
   },
-  stampRight: {
-    top: Spacing.four,
-    right: Spacing.four,
-    transform: [{ rotate: '12deg' }],
-    borderColor: '#34C759',
+  stampText: {
+    fontFamily: FontFamily.display,
+    fontSize: 18,
+    lineHeight: 22,
+    letterSpacing: 0.4,
+    color: '#07070B',
   },
-  stampLeft: {
-    top: Spacing.four,
-    left: Spacing.four,
-    transform: [{ rotate: '-12deg' }],
-    borderColor: '#FF3B30',
-  },
-  stampTop: {
-    top: Spacing.four,
-    alignSelf: 'center',
-    borderColor: '#34C759',
-  },
-  stampBottom: {
-    bottom: Spacing.four,
-    alignSelf: 'center',
-    borderColor: '#FF3B30',
-  },
-  neverStamp: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginLeft: -70,
-    marginTop: -30,
-    width: 140,
-    borderWidth: 4,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.two,
-    alignItems: 'center',
-    borderColor: '#8E1B1B',
-  },
-  stampTextYes: {
-    color: '#34C759',
-  },
-  stampTextNo: {
-    color: '#FF3B30',
-  },
-  stampTextLeanYes: {
-    color: '#34C759',
-  },
-  stampTextLeanNo: {
-    color: '#FF3B30',
-  },
-  stampTextNever: {
-    color: '#8E1B1B',
-  },
+  stampYes: { backgroundColor: '#3DDC97' },
+  stampNo: { backgroundColor: '#FF5470' },
+  stampNever: { backgroundColor: '#B3243F' },
+  stampRight: { top: Spacing.four, right: Spacing.four },
+  stampLeft: { top: Spacing.four, left: Spacing.four },
+  stampTop: { top: Spacing.four, alignSelf: 'center' },
+  stampBottom: { bottom: 72, alignSelf: 'center' },
+  stampCenter: { top: '45%', alignSelf: 'center' },
 });

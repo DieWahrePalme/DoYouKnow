@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,28 +10,41 @@ interface AnswerButtonsProps {
   onAnswer: (value: AnswerValue) => void;
 }
 
-const BUTTONS: { value: AnswerValue; label: string }[] = [
-  { value: 'no', label: '✕ Nein' },
-  { value: 'leanNo', label: '↓ Eher nein' },
-  { value: 'leanYes', label: '↑ Eher ja' },
-  { value: 'yes', label: '✓ Ja' },
+const BUTTONS: { value: AnswerValue; label: string; icon: keyof typeof Ionicons.glyphMap; primary?: boolean }[] = [
+  { value: 'no', label: 'Nein', icon: 'close' },
+  { value: 'leanNo', label: 'Eher nein', icon: 'arrow-down' },
+  { value: 'leanYes', label: 'Eher ja', icon: 'arrow-up' },
+  { value: 'yes', label: 'Ja', icon: 'checkmark', primary: true },
 ];
 
+const BUTTON_SIZE = 60;
+
+/** Round icon buttons with the label underneath; "Ja" carries the accent. */
 export function AnswerButtons({ onAnswer }: AnswerButtonsProps) {
   const theme = useTheme();
 
   return (
     <View style={styles.row}>
       {BUTTONS.map((button) => (
-        <Pressable
-          key={button.value}
-          onPress={() => onAnswer(button.value)}
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
-          ]}>
-          <ThemedText type="smallBold">{button.label}</ThemedText>
-        </Pressable>
+        <View key={button.value} style={styles.item}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={button.label}
+            onPress={() => onAnswer(button.value)}
+            style={({ pressed }) => [
+              styles.button,
+              {
+                backgroundColor: button.primary ? theme.primary : theme.backgroundElement,
+                borderColor: theme.border,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}>
+            <Ionicons name={button.icon} size={26} color={button.primary ? theme.primaryText : theme.text} />
+          </Pressable>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
+            {button.label}
+          </ThemedText>
+        </View>
       ))}
     </View>
   );
@@ -39,13 +53,24 @@ export function AnswerButtons({ onAnswer }: AnswerButtonsProps) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.two,
+  },
+  item: {
+    alignItems: 'center',
     gap: Spacing.two,
-    justifyContent: 'center',
-    flexWrap: 'wrap',
+    width: 76,
   },
   button: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.four,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
+    borderRadius: BUTTON_SIZE / 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

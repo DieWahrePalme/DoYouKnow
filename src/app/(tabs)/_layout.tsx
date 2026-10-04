@@ -1,9 +1,9 @@
 import { Href, Slot, router, usePathname } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { FloatingTabBar, IconName } from '@/components/floating-tab-bar';
 import { Colors, Spacing } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
 import { useAuthStore } from '@/state/authStore';
@@ -12,20 +12,19 @@ import { useFriendsStore } from '@/state/friendsStore';
 interface TabDef {
   href: Href;
   isActive: (pathname: string) => boolean;
-  emoji: string | null;
+  icon: IconName;
   label: string;
 }
 
 const TABS: TabDef[] = [
-  { href: '/', isActive: (p) => p === '/', emoji: '🏠', label: 'Home' },
-  { href: '/match', isActive: (p) => p === '/match', emoji: '🤝', label: 'Match' },
-  { href: '/favorites', isActive: (p) => p === '/favorites', emoji: '⭐', label: 'Favoriten' },
-  { href: '/profile', isActive: (p) => p === '/profile', emoji: null, label: 'Profil' },
+  { href: '/', isActive: (p) => p === '/', icon: 'flame', label: 'Heute' },
+  { href: '/match', isActive: (p) => p === '/match', icon: 'git-compare', label: 'Match' },
+  { href: '/favorites', isActive: (p) => p === '/favorites', icon: 'star', label: 'Favoriten' },
+  { href: '/profile', isActive: (p) => p === '/profile', icon: 'person', label: 'Profil' },
 ];
 
 export default function TabsLayout() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const theme = Colors.dark;
   const pathname = usePathname();
   const authProfile = useAuthStore((state) => state.profile);
   const profileError = useAuthStore((state) => state.profileError);
@@ -33,7 +32,6 @@ export default function TabsLayout() {
   const signOut = useAuthStore((state) => state.signOut);
   const activeUserId = useAppStore((state) => state.activeUserId);
   const syncRealUser = useAppStore((state) => state.syncRealUser);
-  const avatarEmoji = useAppStore((state) => state.users[state.activeUserId]?.avatarEmoji);
 
   useEffect(() => {
     if (authProfile) {
@@ -74,25 +72,11 @@ export default function TabsLayout() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.container}>
       <View style={styles.content}>
         <Slot />
       </View>
-      <SafeAreaView
-        edges={['bottom']}
-        style={[styles.tabBar, { backgroundColor: theme.background, borderTopColor: theme.backgroundSelected }]}>
-        {TABS.map((tab) => {
-          const active = tab.isActive(pathname);
-          return (
-            <Pressable key={tab.label} style={styles.tabButton} onPress={() => router.replace(tab.href)}>
-              <Text style={[styles.tabEmoji, { opacity: active ? 1 : 0.5 }]}>{tab.emoji ?? avatarEmoji}</Text>
-              <Text style={[styles.tabLabel, { color: active ? theme.text : theme.textSecondary }]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </SafeAreaView>
+      <FloatingTabBar tabs={TABS} pathname={pathname} onSelect={(href) => router.replace(href)} />
     </View>
   );
 }
@@ -122,23 +106,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.two,
-    gap: 2,
-  },
-  tabEmoji: {
-    fontSize: 20,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
   },
 });

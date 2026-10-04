@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GuessHeader } from '@/components/guess-header';
 import { ResultView } from '@/components/result-view';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { ThemedText } from '@/components/themed-text';
@@ -47,12 +48,9 @@ export default function FriendGroupGuessScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="subtitle" style={styles.heading}>
-          {group.icon} {group.name}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.subheading}>
-          {friend.avatarEmoji} {friend.name}
-        </ThemedText>
+        <View style={styles.header}>
+          <GuessHeader avatarEmoji={friend.avatarEmoji} friendName={friend.name} topicName={group.name} />
+        </View>
 
         {!guess ? (
           <SwipeDeck questions={group.questions} onComplete={handleComplete} />
@@ -81,13 +79,11 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.four,
   },
-  heading: {
-    marginTop: Spacing.three,
-  },
-  subheading: {
-    marginBottom: Spacing.three,
+  header: {
+    marginTop: Spacing.five,
+    marginBottom: Spacing.four,
   },
   button: {
     marginTop: Spacing.three,

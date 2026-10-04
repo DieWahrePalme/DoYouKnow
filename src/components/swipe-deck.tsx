@@ -4,8 +4,8 @@ import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-n
 
 import { AnswerButtons } from '@/components/answer-buttons';
 import { SwipeCard, SwipeCardHandle } from '@/components/swipe-card';
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { AnswerMap, AnswerValue, Question } from '@/types';
 
 interface SwipeDeckProps {
@@ -14,6 +14,7 @@ interface SwipeDeckProps {
 }
 
 export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
+  const theme = useTheme();
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const cardRef = useRef<SwipeCardHandle>(null);
@@ -65,9 +66,14 @@ export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
 
   return (
     <View style={styles.wrap}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.progress}>
-        Frage {index + 1} von {questions.length}
-      </ThemedText>
+      <View style={styles.progress} accessibilityLabel={`Frage ${index + 1} von ${questions.length}`}>
+        {questions.map((question, i) => (
+          <View
+            key={question.id}
+            style={[styles.segment, { backgroundColor: i <= index ? theme.primary : theme.backgroundSelected }]}
+          />
+        ))}
+      </View>
 
       <View style={styles.stack}>
         {nextQuestion ? (
@@ -102,10 +108,16 @@ export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
-    gap: Spacing.three,
+    gap: Spacing.four,
   },
   progress: {
-    textAlign: 'center',
+    flexDirection: 'row',
+    gap: Spacing.one,
+  },
+  segment: {
+    flex: 1,
+    height: 4,
+    borderRadius: Radius.pill,
   },
   stack: {
     flex: 1,
