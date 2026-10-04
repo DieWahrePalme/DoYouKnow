@@ -29,7 +29,9 @@ jobs:
 
       - name: Export static web build
         env:
-          GH_PAGES_BASE_PATH: /${{ github.event.repository.name }}
+          # Served from the domain root (app.playdoyouknow.com), so no
+          # GH_PAGES_BASE_PATH. Set it again only if the site moves back
+          # under https://<user>.github.io/<repo>/.
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: npx expo export --platform web
