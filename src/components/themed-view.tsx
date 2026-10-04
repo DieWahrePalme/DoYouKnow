@@ -12,5 +12,6 @@ export type ThemedViewProps = ViewProps & {
 export function ThemedView({ style, lightColor, darkColor, type, ...otherProps }: ThemedViewProps) {
   const theme = useTheme();
 
-  return <View style={[{ backgroundColor: theme[type ?? 'background'] }, style]} {...otherProps} />;
+  // Untyped views stay transparent so the animated field shows through; pass `type` for a solid surface.
+  return <View style={[type ? { backgroundColor: theme[type] } : null, style]} {...otherProps} />;
 }

@@ -7,35 +7,34 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
-  light: {
-    text: '#0B0B0F',
-    background: '#F5F5F8',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#ECEBFB',
-    textSecondary: '#6B6D76',
-    primary: '#6C5CE7',
-    primaryText: '#FFFFFF',
-    border: '#E4E3EC',
-    success: '#1DBF73',
-    danger: '#FF3B5C',
-  },
-  dark: {
-    text: '#FFFFFF',
-    background: '#0A0A0C',
-    backgroundElement: '#18181C',
-    backgroundSelected: '#242430',
-    textSecondary: '#9A9AA5',
-    primary: '#8B7CF8',
-    primaryText: '#FFFFFF',
-    border: '#2A2A32',
-    success: '#2ED573',
-    danger: '#FF4D6D',
-  },
+/**
+ * Dark-only palette. Surfaces and text stay neutral; blue -> violet is
+ * reserved for the background field and the single accent (primary).
+ */
+const dark = {
+  text: '#F5F5F7',
+  background: '#07070B',
+  backgroundElement: '#14141A',
+  backgroundSelected: '#1D1D26',
+  textSecondary: '#8D8D9B',
+  primary: '#7B6CFF',
+  primaryText: '#FFFFFF',
+  border: '#24242E',
+  success: '#3DDC97',
+  danger: '#FF5470',
 } as const;
 
-/** Gradient stops for the primary CTA / hero surfaces, Revolut-style. */
-export const PrimaryGradient = ['#6C5CE7', '#FF4D8D'] as const;
+export const Colors = { light: dark, dark } as const;
+
+/** Blue -> violet stops used by the animated background field. */
+export const FieldColors = {
+  base: '#07070B',
+  blue: '#2F6BFF',
+  violet: '#8A5CFF',
+} as const;
+
+/** Gradient stops for hero surfaces (kept for primary CTA fallbacks). */
+export const PrimaryGradient = ['#4F7BFF', '#8A5CFF'] as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
@@ -64,6 +63,22 @@ export const Fonts = Platform.select({
   },
 });
 
+/** Display + body families, loaded in the root layout (see src/app/_layout.tsx). */
+export const FontFamily = {
+  display: 'BricolageGrotesque_800ExtraBold',
+  displaySemi: 'BricolageGrotesque_600SemiBold',
+  body: 'Inter_500Medium',
+  bodySemi: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
+} as const;
+
+/** Corner radii: cards, pills (fully round) and small chips. */
+export const Radius = {
+  chip: 12,
+  card: 24,
+  pill: 999,
+} as const;
+
 export const Spacing = {
   half: 2,
   one: 4,
@@ -74,5 +89,6 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/** Height the floating tab bar occupies above the bottom safe area. */
+export const BottomTabInset = 96;
 export const MaxContentWidth = 800;
