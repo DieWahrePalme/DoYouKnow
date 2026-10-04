@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FontFamily, PrimaryGradient, Radius, Spacing } from '@/constants/theme';
+import { FontFamily, PrimaryGradient, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface GuessHeaderProps {
@@ -11,33 +11,36 @@ interface GuessHeaderProps {
   topicName: string;
 }
 
-/** Story-style avatar ring, "who you're guessing" line and the topic as a bold title. */
+/** One compact row: story-style avatar ring, then the topic as title with a small kicker above it. */
 export function GuessHeader({ avatarEmoji, kicker, topicName }: GuessHeaderProps) {
   const theme = useTheme();
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.row}>
       <LinearGradient colors={PrimaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ring}>
         <View style={[styles.avatar, { backgroundColor: theme.backgroundElement, borderColor: theme.background }]}>
           <ThemedText style={styles.emoji}>{avatarEmoji}</ThemedText>
         </View>
       </LinearGradient>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.kicker}>
-        {kicker}
-      </ThemedText>
-      <ThemedText style={styles.topic} numberOfLines={2}>
-        {topicName}
-      </ThemedText>
+      <View style={styles.text}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.kicker} numberOfLines={1}>
+          {kicker}
+        </ThemedText>
+        <ThemedText style={styles.topic} numberOfLines={1}>
+          {topicName}
+        </ThemedText>
+      </View>
     </View>
   );
 }
 
-const RING = 72;
+const RING = 48;
 
 const styles = StyleSheet.create({
-  wrap: {
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.one,
+    gap: Spacing.three,
   },
   ring: {
     width: RING,
@@ -45,30 +48,31 @@ const styles = StyleSheet.create({
     borderRadius: RING / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.two,
   },
   avatar: {
-    width: RING - 6,
-    height: RING - 6,
-    borderRadius: (RING - 6) / 2,
-    borderWidth: 3,
+    width: RING - 5,
+    height: RING - 5,
+    borderRadius: (RING - 5) / 2,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emoji: {
-    fontSize: 32,
-    lineHeight: 40,
+    fontSize: 22,
+    lineHeight: 28,
+  },
+  text: {
+    flex: 1,
   },
   kicker: {
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 15,
   },
   topic: {
     fontFamily: FontFamily.display,
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: -1,
-    textAlign: 'center',
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.6,
     color: '#F5F5F7',
-    borderRadius: Radius.pill,
   },
 });

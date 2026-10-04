@@ -46,17 +46,18 @@ export default function FriendGroupGuessScreen() {
 
   const guess = localGuess ?? existingGuess;
 
+  const header = (
+    <GuessHeader avatarEmoji={friend.avatarEmoji} kicker={`Du rätst für ${friend.name}`} topicName={group.name} />
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <GuessHeader avatarEmoji={friend.avatarEmoji} kicker={`Du rätst für ${friend.name}`} topicName={group.name} />
-        </View>
-
         {!guess ? (
-          <SwipeDeck questions={group.questions} onComplete={handleComplete} />
+          <SwipeDeck questions={group.questions} onComplete={handleComplete} header={header} />
         ) : (
           <>
+            <View style={styles.header}>{header}</View>
             <ResultView subjectName={friend.name} questions={group.questions} guesses={guess} truth={truth} />
             <Pressable
               onPress={() => router.back()}
@@ -81,10 +82,11 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.four,
   },
   header: {
-    marginTop: Spacing.five,
+    marginTop: Spacing.two,
     marginBottom: Spacing.four,
   },
   button: {

@@ -7,7 +7,6 @@ import Animated, {
   interpolate,
   runOnJS,
   SharedValue,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -31,6 +30,11 @@ const MIN_EXIT_MS = 380;
 const MAX_EXIT_MS = 560;
 /** Drag distance (px) after which the card behind has fully moved up into place. */
 const BEHIND_FULL_AT = 200;
+/** How each layer further back sits: pushed down, smaller, dimmer (index = layers back, 0 = top). */
+const LAYER_OFFSET_Y = 20;
+const LAYER_SHRINK = 0.05;
+/** How dark the veil over each layer is (cards stay opaque so text never shows through). */
+const LAYER_SHADE = [0, 0.25, 0.5, 0.72];
 
 const EXIT_TARGETS: Record<Exclude<AnswerValue, 'never'>, [number, number]> = {
   yes: [EXIT_DISTANCE, 0],
@@ -49,8 +53,13 @@ interface SwipeCardProps {
   onAnswer: (value: AnswerValue) => void;
   /** The top card takes gestures; the one behind just waits and rises as the top card is dragged away. */
   active: boolean;
-  /** 0-1: how far the top card has been dragged away. Written by the active card, read by the one behind. */
-  dragProgress: SharedValue<number>;
+  /** This card's position in the whole deck (0 = first question). */
+  index: number;
+  /**
+   * Where the deck currently is, as `topIndex + drag (0-1)`. Written by the top card, read by the
+   * ones behind: the value stays continuous when a card is answered and the next becomes the top.
+   */
+  stackPos: SharedValue<number>;
 }
 
 /**
@@ -59,7 +68,7 @@ interface SwipeCardProps {
  * so there is no remount flash when a question is answered.
  */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { question, onAnswer, active, dragProgress },
+  { question, onAnswer, active, index, stackPos },
   ref,
 ) {
   const theme = useTheme();
@@ -79,14 +88,6 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
   useEffect(() => {
     appear.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) });
   }, [appear]);
-
-  // The top card reports its drag; the card behind follows it.
-  useAnimatedReaction(
-    () => (isActive.value ? Math.min(Math.hypot(translateX.value, translateY.value) / BEHIND_FULL_AT, 1) : -1),
-    (value) => {
-      if (value >= 0) dragProgress.value = value;
-    },
-  );
 
   function tick() {
     void Haptics.selectionAsync();
@@ -111,7 +112,10 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
     runOnJS(thud)();
     translateX.value = withTiming(exitX, { duration, easing });
     translateY.value = withTiming(exitY, { duration, easing }, (finished) => {
-      if (finished) runOnJS(onAnswer)(value);
+      if (finished) {
+        stackPos.value = index + 1;
+        runOnJS(onAnswer)(value);
+      }
     });
   }
 
@@ -189,19 +193,26 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
 
   const cardStyle = useAnimatedStyle(() => {
     const travelled = Math.hypot(translateX.value, translateY.value);
-    // 1 = fully "behind" (small, low, dim), 0 = in place. The top card is always in place.
-    const behind = isActive.value ? 0 : 1 - dragProgress.value;
+    // The top card reports its drag so the layers behind rise with it. Done here (not in a
+    // reaction) because this style is guaranteed to re-run on every frame the card moves.
+    if (isActive.value) stackPos.value = index + Math.min(travelled / BEHIND_FULL_AT, 1);
+    // Layers back from the top (0 = on top). Continuous while the top card is dragged away.
+    const layer = Math.max(index - stackPos.value, 0);
     return {
-      opacity: interpolate(behind, [0, 1], [1, 0.55]) * appear.value * interpolate(travelled, [420, 700], [1, 0], 'clamp'),
+      opacity: appear.value * interpolate(travelled, [420, 700], [1, 0], 'clamp'),
       transform: [
         { translateX: translateX.value },
-        { translateY: translateY.value + behind * 18 },
+        { translateY: translateY.value + layer * LAYER_OFFSET_Y },
         // Keeps rotating while it flies out, which sells the throw.
         { rotate: `${interpolate(translateX.value, [-320, 320], [-14, 14])}deg` },
-        { scale: 1 - behind * 0.06 },
+        { scale: 1 - layer * LAYER_SHRINK },
       ],
     };
   });
+
+  const shadeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(Math.max(index - stackPos.value, 0), [0, 1, 2, 3], LAYER_SHADE, 'clamp'),
+  }));
 
   const yesStampStyle = useAnimatedStyle(() => {
     const t = interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp');
@@ -249,13 +260,16 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
         </Animated.View>
 
         <View style={styles.questionWrap}>
-          <ThemedText style={styles.questionText}>{question.text}</ThemedText>
+          <ThemedText style={styles.questionText} adjustsFontSizeToFit minimumFontScale={0.6} numberOfLines={7}>
+            {question.text}
+          </ThemedText>
         </View>
         <View style={[styles.hintPill, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
             Nie · 2× tippen
           </ThemedText>
         </View>
+        <Animated.View style={[styles.shade, shadeStyle]} pointerEvents="none" />
       </Animated.View>
     </GestureDetector>
   );
@@ -270,7 +284,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: Radius.card + 4,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.four,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: 56,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -279,21 +294,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     elevation: 6,
   },
+  shade: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: Radius.card + 4,
+    backgroundColor: '#07070B',
+  },
   questionWrap: {
+    alignSelf: 'stretch',
     alignItems: 'center',
-    gap: Spacing.two,
   },
   questionText: {
     fontFamily: FontFamily.display,
-    fontSize: 32,
-    lineHeight: 37,
-    letterSpacing: -0.8,
+    fontSize: 42,
+    lineHeight: 47,
+    letterSpacing: -1.2,
     textAlign: 'center',
     color: '#F5F5F7',
   },
   hintPill: {
     position: 'absolute',
-    bottom: Spacing.four,
+    bottom: Spacing.three,
     paddingVertical: 6,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,

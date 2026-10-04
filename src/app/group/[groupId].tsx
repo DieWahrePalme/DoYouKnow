@@ -62,19 +62,16 @@ export default function MyGroupScreen() {
     setJustSubmitted(true);
   }
 
+  const header = <GuessHeader avatarEmoji={myAvatar} kicker="Deine Karte" topicName={group.name} />;
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.heading}>
-          <GuessHeader avatarEmoji={myAvatar} kicker="Deine Karte" topicName={group.name} />
-        </View>
-
         {showSwipeDeck ? (
-          <>
-            <SwipeDeck questions={group.questions} onComplete={handleComplete} />
-          </>
+          <SwipeDeck questions={group.questions} onComplete={handleComplete} header={header} />
         ) : (
           <ScrollView contentContainerStyle={styles.summary} showsVerticalScrollIndicator={false}>
+            <View style={styles.heading}>{header}</View>
             {justSubmitted ? (
               <View style={[styles.doneBanner, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
                 <Ionicons name="checkmark-circle" size={20} color={theme.success} />
@@ -129,11 +126,11 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
   heading: {
-    marginTop: Spacing.three,
-    marginBottom: Spacing.four,
+    marginTop: Spacing.two,
   },
   summary: {
     paddingBottom: Spacing.five,

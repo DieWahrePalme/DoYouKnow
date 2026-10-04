@@ -1,25 +1,31 @@
-import { useRef, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { AnswerButtons } from '@/components/answer-buttons';
 import { SwipeCard, SwipeCardHandle } from '@/components/swipe-card';
-import { Radius, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { AnswerMap, AnswerValue, Question } from '@/types';
 
 interface SwipeDeckProps {
   questions: Question[];
   onComplete: (answers: AnswerMap) => void;
+  /** Compact header (avatar + title); the "N übrig" counter sits at its right. */
+  header?: ReactNode;
 }
 
-export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
+/** How many cards are visible as a stack at once (top card + the layers behind it). */
+const VISIBLE_LAYERS = 4;
+
+export function SwipeDeck({ questions, onComplete, header }: SwipeDeckProps) {
   const theme = useTheme();
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const cardRef = useRef<SwipeCardHandle>(null);
-  // Written by whichever card is on top, read by the one behind it.
-  const dragProgress = useSharedValue(0);
+  // `topIndex + drag`, written by the top card, read by the layers behind it.
+  const stackPos = useSharedValue(0);
 
   function handleAnswer(value: AnswerValue) {
     const updated = { ...answers, [questions[index].id]: value };
@@ -35,24 +41,29 @@ export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
     cardRef.current?.animateAnswer(value);
   }
 
-  // Only the top card and the one behind it exist. Cards are keyed by
-  // question id, so the card behind is promoted in place (no remount).
-  const visible = questions.slice(index, index + 2);
+  // Cards are keyed by question id, so each one is promoted in place (no remount).
+  // Rendered back to front so the top card is last (and on top).
+  const visible = questions.slice(index, index + VISIBLE_LAYERS);
+  const remaining = questions.length - index;
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.progress} accessibilityLabel={`Frage ${index + 1} von ${questions.length}`}>
-        {questions.map((question, i) => (
-          <View
-            key={question.id}
-            style={[styles.segment, { backgroundColor: i <= index ? theme.primary : theme.backgroundSelected }]}
-          />
-        ))}
+      <View style={styles.headerRow}>
+        <View style={styles.headerSlot}>{header}</View>
+        <View
+          style={[styles.counter, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+          accessibilityLabel={`Noch ${remaining} von ${questions.length} Karten`}>
+          <ThemedText style={styles.counterNumber}>{remaining}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.counterLabel}>
+            übrig
+          </ThemedText>
+        </View>
       </View>
 
       <View style={styles.stack}>
-        {visible.map((question) => {
-          const isTop = question.id === questions[index].id;
+        {[...visible].reverse().map((question) => {
+          const cardIndex = questions.indexOf(question);
+          const isTop = cardIndex === index;
           return (
             <SwipeCard
               ref={isTop ? cardRef : undefined}
@@ -60,7 +71,8 @@ export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
               question={question}
               onAnswer={handleAnswer}
               active={isTop}
-              dragProgress={dragProgress}
+              index={cardIndex}
+              stackPos={stackPos}
             />
           );
         })}
@@ -74,19 +86,37 @@ export function SwipeDeck({ questions, onComplete }: SwipeDeckProps) {
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
-  progress: {
+  headerRow: {
     flexDirection: 'row',
-    gap: Spacing.one,
+    alignItems: 'center',
+    gap: Spacing.three,
   },
-  segment: {
+  headerSlot: {
     flex: 1,
-    height: 4,
-    borderRadius: Radius.pill,
   },
+  counter: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  counterNumber: {
+    fontFamily: FontFamily.display,
+    fontSize: 20,
+    lineHeight: 24,
+    color: '#F5F5F7',
+  },
+  counterLabel: {
+    fontSize: 13,
+  },
+  // Room below the card for the layers peeking out underneath it.
   stack: {
     flex: 1,
-    marginVertical: Spacing.two,
+    marginBottom: 44,
   },
 });

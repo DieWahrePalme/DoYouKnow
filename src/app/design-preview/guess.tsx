@@ -31,10 +31,11 @@ export default function DesignPreview() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <GuessHeader avatarEmoji="🦊" kicker="Du rätst für Tom" topicName="Sport" />
-        </View>
-        <SwipeDeck questions={QUESTIONS} onComplete={() => {}} />
+        <SwipeDeck
+          questions={QUESTIONS}
+          onComplete={() => {}}
+          header={<GuessHeader avatarEmoji="🦊" kicker="Du rätst für Tom" topicName="Sport" />}
+        />
       </SafeAreaView>
       <FloatingTabBar tabs={TABS} pathname="/" onSelect={() => {}} />
     </ThemedView>
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: 96 + Spacing.three,
   },
-  header: { marginTop: Spacing.five, marginBottom: Spacing.four },
 });
